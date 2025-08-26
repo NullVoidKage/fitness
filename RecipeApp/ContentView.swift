@@ -1,1365 +1,1166 @@
 import SwiftUI
-import UIKit
- 
-// MARK: - Simple Data Models for Walking Focus
+import HealthKit
+
+// MARK: - Enhanced Data Models
+struct FitnessData: Identifiable {
+    let id = UUID()
+    var steps: Int
+    var distance: Double // in kilometers
+    var calories: Int
+    var activeMinutes: Int
+    var heartRate: Int
+    var sleepHours: Double
+    var wakeUps: Int
+    var hydration: Int // in ml
+    var streak: Int
+    var dailyGoal: Int
+    var weeklyGoal: Int
+    var monthlyGoal: Int
+}
+
 struct Workout: Identifiable {
     let id = UUID()
-    let name: String
-    let duration: Int
-    let calories: Int
-    let type: String
-    let date: String
-    let icon: String
-    let color: Color
-    let distance: String?
-    let pace: String?
+    var name: String
+    var type: WorkoutType
+    var duration: TimeInterval
+    var calories: Int
+    var distance: Double?
+    var heartRate: [Int]
+    var startTime: Date
+    var endTime: Date
+    var isActive: Bool
 }
 
-struct QuickStartWorkout: Identifiable {
+enum WorkoutType: String, CaseIterable {
+    case running = "Running"
+    case cycling = "Cycling"
+    case walking = "Walking"
+    case hiit = "HIIT"
+    case yoga = "Yoga"
+    case swimming = "Swimming"
+    
+    var icon: String {
+        switch self {
+        case .running: return "figure.run"
+        case .cycling: return "figure.outdoor.cycle"
+        case .walking: return "figure.walk"
+        case .hiit: return "flame.fill"
+        case .yoga: return "figure.mind.and.body"
+        case .swimming: return "figure.pool.swim"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .running: return .red
+        case .cycling: return .blue
+        case .walking: return .green
+        case .hiit: return .orange
+        case .yoga: return .purple
+        case .swimming: return .cyan
+        }
+    }
+}
+
+struct Achievement: Identifiable {
     let id = UUID()
-    let name: String
-    let duration: Int
-    let icon: String
-    let color: Color
-    let intensity: String
+    var name: String
+    var description: String
+    var icon: String
+    var isUnlocked: Bool
+    var progress: Double
+    var color: Color
 }
 
-struct Trend: Identifiable {
+struct Reminder: Identifiable {
     let id = UUID()
-    let title: String
-    let value: String
-    let change: String
-    let isPositive: Bool
-    let icon: String
-    let color: Color
-    let trend: String
+    var type: ReminderType
+    var time: Date
+    var isEnabled: Bool
+    var message: String
 }
 
-struct EnhancedWorkoutType: Identifiable {
-    let id = UUID()
-    let name: String
-    let icon: String
-    let color: Color
-    let description: String
+enum ReminderType: String, CaseIterable {
+    case stand = "Stand"
+    case hydration = "Hydration"
+    case bedtime = "Bedtime"
+    case workout = "Workout"
+    
+    var icon: String {
+        switch self {
+        case .stand: return "figure.stand"
+        case .hydration: return "drop.fill"
+        case .bedtime: return "bed.double.fill"
+        case .workout: return "dumbbell.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .stand: return .green
+        case .hydration: return .blue
+        case .bedtime: return .purple
+        case .workout: return .orange
+        }
+    }
 }
 
-// MARK: - Dynamic Walking Data
-
-
-let quickStartWorkouts: [QuickStartWorkout] = [
-    QuickStartWorkout(name: "Quick Walk", duration: 15, icon: "figure.walk", color: .green, intensity: "Easy"),
-    QuickStartWorkout(name: "Power Walk", duration: 30, icon: "figure.walk", color: .blue, intensity: "Medium"),
-    QuickStartWorkout(name: "Long Walk", duration: 60, icon: "figure.walk", color: .purple, intensity: "Moderate")
-]
-
-
-
-let enhancedWorkoutTypes: [EnhancedWorkoutType] = [
-    EnhancedWorkoutType(name: "Walking", icon: "figure.walk", color: .green, description: "Outdoor & Indoor"),
-    EnhancedWorkoutType(name: "Power Walking", icon: "figure.walk", color: .blue, description: "Faster pace"),
-    EnhancedWorkoutType(name: "Hiking", icon: "mountain.2", color: .brown, description: "Trail walking"),
-    EnhancedWorkoutType(name: "Treadmill", icon: "figure.walk", color: .purple, description: "Indoor walking")
-]
-
+// MARK: - Main Content View
 struct ContentView: View {
-    @State private var showingAddWorkout = false
-    @State private var ringAnimation = false
-    @State private var showingWorkoutDetail = false
-    @State private var selectedWorkout: Workout?
-    @State private var isRefreshing = false
-    @State private var isDarkMode = false
-    @Environment(\.colorScheme) var colorScheme
+    @State private var selectedTab = 0
+    @State private var fitnessData = FitnessData(
+        steps: 0,
+        distance: 0.0,
+        calories: 0,
+        activeMinutes: 0,
+        heartRate: 72,
+        sleepHours: 7.5,
+        wakeUps: 2,
+        hydration: 0,
+        streak: 0,
+        dailyGoal: 10000,
+        weeklyGoal: 70000,
+        monthlyGoal: 300000
+    )
     
-    // Real walking-focused fitness data
-    @State private var dailyGoal = 600
-    @State private var currentCalories = 0
-    @State private var currentExercise = 0
-    @State private var currentStand = 0
-    @State private var weeklyCalories = 0
-    @State private var weeklyExercise = 0
-    @State private var weeklyStand = 0
-    @State private var streakDays = 0
-    @State private var monthlyGoal = 0
-    @State private var totalSteps = 0
-    @State private var averagePace = "0:00"
-    @State private var totalDistance = 0.0
+    @State private var workouts: [Workout] = []
+    @State private var achievements: [Achievement] = []
+    @State private var reminders: [Reminder] = []
+    @State private var showingWorkoutSheet = false
+    @State private var showingReminderSheet = false
     
-    // Computed property for trends
-    var enhancedTrends: [Trend] {
-        // Calculate real changes based on local data
-        let stepsChange = totalSteps > 0 ? Int.random(in: 5...20) : 0
-        let distanceChange = totalDistance > 0 ? Int.random(in: 3...12) : 0
-        let walksChange = streakDays > 0 ? Int.random(in: 1...2) : 0
-        
-        return [
-            Trend(
-                title: "Weekly Steps",
-                value: "\(totalSteps)",
-                change: stepsChange > 0 ? "+\(stepsChange)%" : "0%",
-                isPositive: stepsChange > 0,
-                icon: "figure.walk",
-                color: .green,
-                trend: stepsChange > 15 ? "Above average" : stepsChange > 0 ? "On track" : "Start walking"
-            ),
-            Trend(
-                title: "Walking Distance",
-                value: String(format: "%.1f km", totalDistance),
-                change: distanceChange > 0 ? "+\(distanceChange)%" : "0%",
-                isPositive: distanceChange > 0,
-                icon: "location",
-                color: .blue,
-                trend: distanceChange > 10 ? "Excellent progress" : distanceChange > 0 ? "Steady improvement" : "Begin your journey"
-            ),
-            Trend(
-                title: "Daily Walks",
-                value: "\(streakDays)",
-                change: walksChange > 0 ? "+\(walksChange)" : "0",
-                isPositive: walksChange > 0,
-                icon: "calendar",
-                color: .orange,
-                trend: streakDays > 5 ? "Consistent routine" : streakDays > 0 ? "Building habit" : "Start today"
-            )
-        ]
-    }
-    
-    // Computed property for workout history with dynamic dates
-    var workoutHistory: [Workout] {
-        return [
-            Workout(
-                name: "Morning Walk",
-                duration: Int.random(in: 25...35),
-                calories: Int.random(in: 100...140),
-                type: "Walking",
-                date: getRelativeDate(offset: 0),
-                icon: "figure.walk",
-                color: .green,
-                distance: String(format: "%.1f km", Double.random(in: 1.8...2.5)),
-                pace: String(format: "%d:%02d /km", Int.random(in: 13...16), Int.random(in: 0...59))
-            ),
-            Workout(
-                name: "Evening Walk",
-                duration: Int.random(in: 40...50),
-                calories: Int.random(in: 160...200),
-                type: "Walking",
-                date: getRelativeDate(offset: -1),
-                icon: "figure.walk",
-                color: .blue,
-                distance: String(format: "%.1f km", Double.random(in: 2.8...3.8)),
-                pace: String(format: "%d:%02d /km", Int.random(in: 13...15), Int.random(in: 0...59))
-            ),
-            Workout(
-                name: "Park Walk",
-                duration: Int.random(in: 55...65),
-                calories: Int.random(in: 220...260),
-                type: "Walking",
-                date: getRelativeDate(offset: -2),
-                icon: "figure.walk",
-                color: .green,
-                distance: String(format: "%.1f km", Double.random(in: 4.0...5.0)),
-                pace: String(format: "%d:%02d /km", Int.random(in: 12...14), Int.random(in: 0...59))
-            )
-        ]
-    }
+    // Timer for real-time updates
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
-        ZStack {
-            // Much more visible background with better contrast
-            LinearGradient(
-                colors: [Color(.systemGray6), Color(.systemBackground), Color(.systemGray5)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+        TabView(selection: $selectedTab) {
+            // MARK: - Dashboard Tab
+            DashboardView(
+                fitnessData: $fitnessData,
+                workouts: $workouts,
+                showingWorkoutSheet: $showingWorkoutSheet
             )
-            .ignoresSafeArea()
+            .tabItem {
+                Image(systemName: "house.fill")
+                Text("Dashboard")
+            }
+            .tag(0)
             
-            VStack(spacing: 0) {
-                // Enhanced header with much better visibility
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 12) {
-                            Text("Today")
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            
-                            // Enhanced streak badge with better visibility
-                            HStack(spacing: 6) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.orange)
-                                
-                                Text("\(streakDays)")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.orange.opacity(0.15))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                            )
-                            .cornerRadius(14)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        HStack(spacing: 16) {
-                            // Current date with better visibility and no line breaks
-                            Text(getCurrentDate())
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                                .cornerRadius(12)
-                            
-                            // Enhanced monthly goal indicator with no line breaks
-                            HStack(spacing: 4) {
-                                Text("\(monthlyGoal)%")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.green)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                                
-                                Text("monthly")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.green.opacity(0.2))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.green.opacity(0.4), lineWidth: 1)
-                            )
-                            .cornerRadius(12)
-                            
-                            // Real-time step counter with no line breaks
-                            HStack(spacing: 6) {
-                                Image(systemName: "figure.walk")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.green)
-                                
-                                Text("\(totalSteps)")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.7)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.green.opacity(0.2))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.green.opacity(0.4), lineWidth: 1)
-                            )
-                            .cornerRadius(10)
-                            
-                            // Theme indicator
-                            HStack(spacing: 4) {
-                                Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(isDarkMode ? .blue : .orange)
-                                
-                                Text(isDarkMode ? "Dark" : "Light")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(Color(.systemGray6))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
-                            .cornerRadius(8)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Theme toggle button
-                    Button(action: {
-                        isDarkMode.toggle()
-                        // Toggle appearance
-                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                            windowScene.windows.forEach { window in
-                                window.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
-                            }
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: isDarkMode ? [.orange, .yellow] : [.purple, .blue],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 44, height: 44)
-                                .shadow(color: isDarkMode ? .orange.opacity(0.3) : .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                            
-                            Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .scaleEffect(isDarkMode ? 1.1 : 1.0)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isDarkMode)
-                    
-                    Spacer()
-                    
-                    // Enhanced add workout button with much better visibility
-                    Button(action: { showingAddWorkout = true }) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 52, height: 52)
-                                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                            
-                            Image(systemName: "plus")
-                                .font(.system(size: 26, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .scaleEffect(isRefreshing ? 0.9 : 1.0)
-                    .animation(.easeInOut(duration: 0.2), value: isRefreshing)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 32) {
-                        // Enhanced Activity Rings with much better visibility
-                        VStack(spacing: 28) {
-                            ZStack {
-                                // Enhanced background with better contrast
-                                Circle()
-                                    .fill(Color(.systemBackground))
-                                    .frame(width: 260, height: 260)
-                                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
-                                
-                                // Stand ring (outer) - Blue with much better visibility
-                                Circle()
-                                    .stroke(Color.blue.opacity(0.2), lineWidth: 14)
-                                    .frame(width: 250, height: 250)
-                                
-                                Circle()
-                                    .trim(from: 0, to: ringAnimation ? CGFloat(currentStand) / 12.0 : 0)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.blue, .cyan, .blue],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        style: StrokeStyle(lineWidth: 14, lineCap: .round)
-                                    )
-                                    .frame(width: 250, height: 250)
-                                    .rotationEffect(.degrees(-90))
-                                    .animation(.easeInOut(duration: 2.5).delay(0.5), value: ringAnimation)
-                                    .shadow(color: .blue.opacity(0.4), radius: 8, x: 0, y: 0)
-                                
-                                // Exercise ring (middle) - Green with much better visibility
-                                Circle()
-                                    .stroke(Color.green.opacity(0.2), lineWidth: 14)
-                                    .frame(width: 190, height: 190)
-                                
-                                Circle()
-                                    .trim(from: 0, to: ringAnimation ? CGFloat(currentExercise) / 30.0 : 0)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.green, .mint, .green],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        style: StrokeStyle(lineWidth: 14, lineCap: .round)
-                                    )
-                                    .frame(width: 190, height: 190)
-                                    .rotationEffect(.degrees(-90))
-                                    .animation(.easeInOut(duration: 2.5).delay(0.3), value: ringAnimation)
-                                    .shadow(color: .green.opacity(0.4), radius: 8, x: 0, y: 0)
-                                
-                                // Move ring (inner) - Red with much better visibility
-                                Circle()
-                                    .stroke(Color.red.opacity(0.2), lineWidth: 14)
-                                    .frame(width: 130, height: 130)
-                                
-                                Circle()
-                                    .trim(from: 0, to: ringAnimation ? CGFloat(currentCalories) / CGFloat(dailyGoal) : 0)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.red, .orange, .red],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        style: StrokeStyle(lineWidth: 14, lineCap: .round)
-                                    )
-                                    .frame(width: 130, height: 130)
-                                    .rotationEffect(.degrees(-90))
-                                    .animation(.easeInOut(duration: 2.5).delay(0.1), value: ringAnimation)
-                                    .shadow(color: .red.opacity(0.4), radius: 8, x: 0, y: 0)
-                                
-                                // Enhanced center content with much better visibility
-                                VStack(spacing: 10) {
-                                    Text("\(currentCalories)")
-                                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                                        .foregroundColor(.primary)
-                                        .scaleEffect(ringAnimation ? 1.0 : 0.7)
-                                        .animation(.spring(response: 0.8, dampingFraction: 0.7).delay(1.2), value: ringAnimation)
-                                    
-                                    Text("of \(dailyGoal) cal")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(.secondary)
-                                        .opacity(ringAnimation ? 1.0 : 0.0)
-                                        .animation(.easeInOut(duration: 0.6).delay(1.5), value: ringAnimation)
-                                    
-                                    // Enhanced progress percentage
-                                    Text("\(Int((Double(currentCalories) / Double(dailyGoal)) * 100))%")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.green)
-                                        .opacity(ringAnimation ? 1.0 : 0.0)
-                                        .animation(.easeInOut(duration: 0.6).delay(1.8), value: ringAnimation)
-                                }
-                            }
-                            
-                            // Enhanced activity stats with much better visibility
-                            HStack(spacing: 48) {
-                                EnhancedActivityStatCard(
-                                    value: "\(currentExercise)",
-                                    label: "Exercise",
-                                    icon: "figure.run",
-                                    color: .green,
-                                    progress: Double(currentExercise) / 30.0,
-                                    delay: 1.4
-                                )
-                                
-                                EnhancedActivityStatCard(
-                                    value: "\(currentStand)",
-                                    label: "Stand",
-                                    icon: "figure.stand",
-                                    color: .blue,
-                                    progress: Double(currentStand) / 12.0,
-                                    delay: 1.6
-                                )
-                                
-                                EnhancedActivityStatCard(
-                                    value: "\(dailyGoal)",
-                                    label: "Move Goal",
-                                    icon: "flame.fill",
-                                    color: .red,
-                                    progress: Double(currentCalories) / Double(dailyGoal),
-                                    delay: 1.8
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        
-                        // Enhanced Workout History with much better visibility
-                        VStack(alignment: .leading, spacing: 24) {
-                            HStack {
-                                Text("Walking History")
-                                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                                
-                                Spacer()
-                                
-                                Button("See All") {
-                                    // Navigate to full workout history
-                                }
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.blue)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.blue.opacity(0.1))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                )
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 24)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 24) {
-                                    ForEach(workoutHistory, id: \.id) { workout in
-                                        EnhancedWorkoutCard(workout: workout) {
-                                            selectedWorkout = workout
-                                            showingWorkoutDetail = true
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 24)
-                            }
-                        }
-                        
-                        // Enhanced Quick Start with much better visibility
-                        VStack(alignment: .leading, spacing: 24) {
-                            HStack {
-                                Text("Quick Start Walking")
-                                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                                
-                                Spacer()
-                                
-                                Button("Browse All") {
-                                    // Navigate to workout library
-                                }
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.blue)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.blue.opacity(0.1))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                )
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 24)
-                            
-                            LazyVGrid(columns: [
-                                GridItem(.flexible(), spacing: 24),
-                                GridItem(.flexible(), spacing: 24)
-                            ], spacing: 24) {
-                                ForEach(quickStartWorkouts, id: \.id) { workout in
-                                    EnhancedQuickStartCard(workout: workout)
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                        }
-                        
-                        // Enhanced Trends with much better visibility
-                        VStack(alignment: .leading, spacing: 24) {
-                            HStack {
-                                Text("Walking Trends")
-                                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                                
-                                Spacer()
-                                
-                                Button("View Details") {
-                                    // Navigate to trends detail
-                                }
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.blue)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.blue.opacity(0.1))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                )
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 24)
-                            
-                            VStack(spacing: 20) {
-                                ForEach(enhancedTrends, id: \.id) { trend in
-                                    EnhancedTrendRow(trend: trend)
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                        }
-                        
-                        // Enhanced Weekly Summary with much better visibility
-                        VStack(alignment: .leading, spacing: 24) {
-                            HStack {
-                                Text("Weekly Walking Summary")
-                                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                
-                                Text(getCurrentWeekRange())
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color(.systemGray5))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color(.systemGray4), lineWidth: 1)
-                                    )
-                                    .cornerRadius(10)
-                            }
-                            .padding(.horizontal, 24)
-                            
-                            HStack(spacing: 24) {
-                                EnhancedWeeklySummaryCard(
-                                    title: "Calories",
-                                    value: "\(weeklyCalories)",
-                                    subtitle: "kcal",
-                                    color: .red,
-                                    icon: "flame.fill",
-                                    progress: Double(weeklyCalories) / 4200.0
-                                )
-                                
-                                EnhancedWeeklySummaryCard(
-                                    title: "Exercise",
-                                    value: "\(weeklyExercise)",
-                                    subtitle: "min",
-                                    color: .green,
-                                    icon: "figure.run",
-                                    progress: Double(weeklyExercise) / 150.0
-                                )
-                                
-                                EnhancedWeeklySummaryCard(
-                                    title: "Stand",
-                                    value: "\(weeklyStand)",
-                                    subtitle: "hrs",
-                                    color: .blue,
-                                    icon: "figure.stand",
-                                    progress: Double(weeklyStand) / 84.0
-                                )
-                            }
-                            .padding(.horizontal, 24)
-                        }
-                        
-                        Spacer(minLength: 40)
-                    }
-                    .padding(.top, 24)
-                }
+            // MARK: - Workouts Tab
+            WorkoutsView(
+                workouts: $workouts,
+                showingWorkoutSheet: $showingWorkoutSheet
+            )
+            .tabItem {
+                Image(systemName: "figure.run")
+                Text("Workouts")
             }
+            .tag(1)
+            
+            // MARK: - Heart Rate Tab
+            HeartRateView(fitnessData: $fitnessData)
+                .tabItem {
+                    Image(systemName: "heart.fill")
+                    Text("Heart Rate")
+                }
+                .tag(2)
+            
+            // MARK: - Sleep Tab
+            SleepView(fitnessData: $fitnessData)
+                .tabItem {
+                    Image(systemName: "bed.double.fill")
+                    Text("Sleep")
+                }
+                .tag(3)
+            
+            // MARK: - Achievements Tab
+            AchievementsView(achievements: $achievements)
+                .tabItem {
+                    Image(systemName: "trophy.fill")
+                    Text("Achievements")
+                }
+                .tag(4)
         }
-        .sheet(isPresented: $showingAddWorkout) {
-            EnhancedAddWorkoutView()
-        }
-        .sheet(isPresented: $showingWorkoutDetail) {
-            if let workout = selectedWorkout {
-                EnhancedWorkoutDetailView(workout: workout)
-            }
+        .accentColor(.green)
+        .onReceive(timer) { _ in
+            updateFitnessData()
         }
         .onAppear {
-            // Trigger enhanced ring animations on app launch
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                ringAnimation = true
-            }
-            
-            // Set initial theme state
-            isDarkMode = colorScheme == .dark
-            
-            // Initialize with sample data
-            initializeSampleData()
-            
-            // Set up timer to refresh data every 30 seconds
-            Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
-                updateSampleData()
-            }
+            setupInitialData()
         }
-        .refreshable {
-            // Pull to refresh functionality
-            await refreshData()
+        .sheet(isPresented: $showingWorkoutSheet) {
+            WorkoutSheet(workouts: $workouts)
         }
     }
     
-    private func refreshData() async {
-        isRefreshing = true
-        // Refresh sample data
-        updateSampleData()
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-        isRefreshing = false
+    private func setupInitialData() {
+        // Initialize sample data
+        workouts = [
+            Workout(name: "Morning Run", type: .running, duration: 1800, calories: 180, distance: 3.2, heartRate: [140, 150, 160, 155, 145], startTime: Date().addingTimeInterval(-7200), endTime: Date().addingTimeInterval(-5400), isActive: false),
+            Workout(name: "Evening Walk", type: .walking, duration: 1200, calories: 80, distance: 1.8, heartRate: [90, 95, 100, 98, 92], startTime: Date().addingTimeInterval(-3600), endTime: Date().addingTimeInterval(-2400), isActive: false)
+        ]
+        
+        achievements = [
+            Achievement(name: "First Steps", description: "Complete your first workout", icon: "figure.walk", isUnlocked: true, progress: 1.0, color: .green),
+            Achievement(name: "Streak Master", description: "Maintain a 7-day streak", icon: "flame.fill", isUnlocked: false, progress: 0.6, color: .orange),
+            Achievement(name: "Goal Crusher", description: "Hit your daily goal 5 times", icon: "target", isUnlocked: false, progress: 0.4, color: .blue)
+        ]
+        
+        reminders = [
+            Reminder(type: .stand, time: Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: Date()) ?? Date(), isEnabled: true, message: "Time to stand up and move around!"),
+            Reminder(type: .hydration, time: Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date(), isEnabled: true, message: "Stay hydrated! Drink some water."),
+            Reminder(type: .bedtime, time: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date(), isEnabled: true, message: "Time to wind down and prepare for bed.")
+        ]
     }
     
-    private func initializeSampleData() {
-        // Initialize with realistic sample data
-        totalSteps = Int.random(in: 8000...12000)
-        currentCalories = Int(Double(totalSteps) * 0.04)
-        currentExercise = Int.random(in: 20...45)
-        currentStand = Int.random(in: 8...12)
-        weeklyCalories = currentCalories * 7
-        weeklyExercise = currentExercise * 7
-        weeklyStand = currentStand * 7
-        
-        // Better monthly goal calculation - aim for 10,000 steps per day
-        let dailyGoal = 10000
-        let daysInMonth = 30
-        let monthlyTarget = dailyGoal * daysInMonth
-        monthlyGoal = min(100, max(10, Int((Double(totalSteps) / Double(monthlyTarget)) * 100)))
-        
-        streakDays = Int.random(in: 3...15)
-        
-        if currentExercise > 0 {
-            totalDistance = Double(currentExercise) / 12.0
-            let paceMinutes = Double(currentExercise) / 5.0
-            let minutes = Int(paceMinutes)
-            let seconds = Int((paceMinutes - Double(minutes)) * 60)
-            averagePace = String(format: "%d:%02d", minutes, seconds)
+    private func updateFitnessData() {
+        // Simulate real-time data updates
+        withAnimation(.easeInOut(duration: 0.5)) {
+            fitnessData.steps += Int.random(in: 0...5)
+            fitnessData.distance = Double(fitnessData.steps) * 0.0008 // Rough conversion
+            fitnessData.calories = fitnessData.steps / 20
+            fitnessData.activeMinutes = fitnessData.steps / 100
+            fitnessData.heartRate += Int.random(in: -2...2)
+            fitnessData.heartRate = max(60, min(180, fitnessData.heartRate))
+            fitnessData.hydration += Int.random(in: 0...10)
         }
     }
-    
-    private func updateSampleData() {
-        // Simulate real-time updates
-        let stepsIncrease = Int.random(in: 50...200)
-        totalSteps += stepsIncrease
-        currentCalories = Int(Double(totalSteps) * 0.04)
-        
-        if Int.random(in: 1...10) > 7 { // 30% chance to increase exercise
-            currentExercise = min(60, currentExercise + Int.random(in: 1...3))
-        }
-        
-        if Int.random(in: 1...10) > 8 { // 20% chance to increase stand
-            currentStand = min(12, currentStand + 1)
-        }
-        
-        // Update weekly totals
-        weeklyCalories = currentCalories * 7
-        weeklyExercise = currentExercise * 7
-        weeklyStand = currentStand * 7
-        
-        // Update monthly goal with better calculation
-        let dailyGoal = 10000
-        let daysInMonth = 30
-        let monthlyTarget = dailyGoal * daysInMonth
-        monthlyGoal = min(100, max(10, Int((Double(totalSteps) / Double(monthlyTarget)) * 100)))
-        
-        // Update distance and pace
-        if currentExercise > 0 {
-            totalDistance = Double(currentExercise) / 12.0
-            let paceMinutes = Double(currentExercise) / 5.0
-            let minutes = Int(paceMinutes)
-            let seconds = Int((paceMinutes - Double(minutes)) * 60)
-            averagePace = String(format: "%d:%02d", minutes, seconds)
-        }
-    }
-    
-    // MARK: - Dynamic Date Functions
-    private func getCurrentDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM d, yyyy"
-        formatter.locale = Locale(identifier: "en_US")
-        let dateString = formatter.string(from: Date())
-        print("Debug - Current date: \(dateString)")
-        return dateString
-    }
-    
-    private func getCurrentWeekRange() -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now) else {
-            return "This Week"
-        }
-        
-        let startFormatter = DateFormatter()
-        startFormatter.dateFormat = "MMM d"
-        
-        let endFormatter = DateFormatter()
-        endFormatter.dateFormat = "MMM d"
-        
-        let startDate = startFormatter.string(from: weekInterval.start)
-        let endDate = endFormatter.string(from: weekInterval.end)
-        
-        return "\(startDate) - \(endDate)"
-    }
-    
-    private func getRelativeDate(offset: Int) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        guard let targetDate = calendar.date(byAdding: .day, value: offset, to: now) else {
-            return "Unknown"
-        }
-        
-        if calendar.isDateInToday(targetDate) {
-            return "Today"
-        } else if calendar.isDateInYesterday(targetDate) {
-            return "Yesterday"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: targetDate)
-        }
-    }
-    
-
 }
 
-// MARK: - Enhanced Activity Stat Card with much better visibility
-struct EnhancedActivityStatCard: View {
+// MARK: - Dashboard View
+struct DashboardView: View {
+    @Binding var fitnessData: FitnessData
+    @Binding var workouts: [Workout]
+    @Binding var showingWorkoutSheet: Bool
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header with greeting
+                    HeaderView(fitnessData: fitnessData)
+                    
+                    // Activity Rings
+                    ActivityRingsView(fitnessData: fitnessData)
+                    
+                    // Quick Stats
+                    QuickStatsView(fitnessData: fitnessData)
+                    
+                    // Recent Workouts
+                    RecentWorkoutsView(workouts: workouts)
+                    
+                    // Quick Actions
+                    QuickActionsView(showingWorkoutSheet: $showingWorkoutSheet)
+                }
+                .padding()
+            }
+            .navigationTitle("FitVA")
+            .navigationBarTitleDisplayMode(.large)
+        }
+    }
+}
+
+// MARK: - Header View
+struct HeaderView: View {
+    let fitnessData: FitnessData
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(greeting)
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Let's crush your goals today!")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                // Streak badge
+                VStack(spacing: 4) {
+                    Image(systemName: "flame.fill")
+                        .font(.title2)
+                        .foregroundColor(.orange)
+                    
+                    Text("\(fitnessData.streak)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    Text("days")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(16)
+            }
+        }
+    }
+    
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good Morning"
+        case 12..<17: return "Good Afternoon"
+        case 17..<22: return "Good Evening"
+        default: return "Good Night"
+        }
+    }
+}
+
+// MARK: - Activity Rings View
+struct ActivityRingsView: View {
+    let fitnessData: FitnessData
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Today's Progress")
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            HStack(spacing: 20) {
+                // Steps Ring
+                RingView(
+                    progress: Double(fitnessData.steps) / Double(fitnessData.dailyGoal),
+                    color: .green,
+                    title: "Steps",
+                    value: "\(fitnessData.steps)",
+                    subtitle: "Goal: \(fitnessData.dailyGoal)"
+                )
+                
+                // Calories Ring
+                RingView(
+                    progress: Double(fitnessData.calories) / 500.0,
+                    color: .red,
+                    title: "Calories",
+                    value: "\(fitnessData.calories)",
+                    subtitle: "Goal: 500"
+                )
+                
+                // Active Minutes Ring
+                RingView(
+                    progress: Double(fitnessData.activeMinutes) / 30.0,
+                    color: .blue,
+                    title: "Active",
+                    value: "\(fitnessData.activeMinutes)m",
+                    subtitle: "Goal: 30m"
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(20)
+    }
+}
+
+// MARK: - Ring View
+struct RingView: View {
+    let progress: Double
+    let color: Color
+    let title: String
     let value: String
-    let label: String
+    let subtitle: String
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .stroke(color.opacity(0.2), lineWidth: 8)
+                    .frame(width: 80, height: 80)
+                
+                Circle()
+                    .trim(from: 0, to: min(progress, 1.0))
+                    .stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: 80, height: 80)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 1.0), value: progress)
+                
+                VStack(spacing: 2) {
+                    Text(value)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(color)
+                    
+                    Text(title)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+}
+
+// MARK: - Quick Stats View
+struct QuickStatsView: View {
+    let fitnessData: FitnessData
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Quick Stats")
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
+                StatCard(
+                    title: "Distance",
+                    value: String(format: "%.1f km", fitnessData.distance),
+                    icon: "figure.walk",
+                    color: .green
+                )
+                
+                StatCard(
+                    title: "Heart Rate",
+                    value: "\(fitnessData.heartRate) bpm",
+                    icon: "heart.fill",
+                    color: .red
+                )
+                
+                StatCard(
+                    title: "Sleep",
+                    value: String(format: "%.1f hrs", fitnessData.sleepHours),
+                    icon: "bed.double.fill",
+                    color: .purple
+                )
+                
+                StatCard(
+                    title: "Hydration",
+                    value: "\(fitnessData.hydration) ml",
+                    icon: "drop.fill",
+                    color: .blue
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(20)
+    }
+}
+
+// MARK: - Stat Card
+struct StatCard: View {
+    let title: String
+    let value: String
     let icon: String
     let color: Color
-    let progress: Double
-    let delay: Double
-    @State private var isVisible = false
     
     var body: some View {
         VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .stroke(color.opacity(0.2), lineWidth: 5)
-                    .frame(width: 60, height: 60)
-                
-                Circle()
-                    .trim(from: 0, to: isVisible ? progress : 0)
-                    .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 1.0).delay(delay), value: isVisible)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 24))
-                    .foregroundColor(color)
-            }
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
             
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Text(value)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.title3)
+                    .fontWeight(.bold)
                     .foregroundColor(.primary)
-                    .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.easeInOut(duration: 0.5).delay(delay + 0.2), value: isVisible)
                 
-                Text(label)
-                    .font(.system(size: 18, weight: .medium))
+                Text(title)
+                    .font(.caption)
                     .foregroundColor(.secondary)
-                    .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.easeInOut(duration: 0.5).delay(delay + 0.4), value: isVisible)
-            }
-        }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                isVisible = true
-            }
-        }
-    }
-}
-
-// MARK: - Enhanced Workout Card with much better visibility
-struct EnhancedWorkoutCard: View {
-    let workout: Workout
-    let onTap: () -> Void
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 18) {
-                // Enhanced workout header with much better visibility
-                HStack {
-                    ZStack {
-                        Circle()
-                            .fill(workout.color.opacity(0.2))
-                            .frame(width: 52, height: 52)
-                        
-                        Image(systemName: workout.icon)
-                            .font(.system(size: 26))
-                            .foregroundColor(workout.color)
-                    }
-                    
-                    Spacer()
-                    
-                    Text(workout.date)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color(.systemGray5))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                        .cornerRadius(12)
-                }
-                
-                // Enhanced workout name with much better visibility
-                Text(workout.name)
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                
-                // Enhanced workout stats with much better visibility
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("\(workout.duration) min")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.primary)
-                            
-                            Text("Duration")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 6) {
-                            Text("\(workout.calories) cal")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.primary)
-                            
-                            Text("Burned")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    if let distance = workout.distance, let pace = workout.pace {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(distance)
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(.primary)
-                                
-                                Text("Distance")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 6) {
-                                Text(pace)
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(.primary)
-                                
-                                Text("Pace")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    
-                    // Enhanced workout type badge with much better visibility
-                    Text(workout.type)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(
-                            LinearGradient(
-                                colors: [workout.color, workout.color.opacity(0.7)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(14)
-                }
-            }
-            .padding(24)
-            .frame(width: 200)
-            .background(
-                Color(.systemBackground)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-            )
-            .cornerRadius(24)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: isPressed)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = false
-                }
-            }
-            onTap()
-        }
-    }
-}
-
-// MARK: - Enhanced Quick Start Card with much better visibility
-struct EnhancedQuickStartCard: View {
-    let workout: QuickStartWorkout
-    @State private var isPressed = false
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                Circle()
-                    .fill(workout.color.opacity(0.25))
-                    .frame(width: 90, height: 90)
-                
-                Image(systemName: workout.icon)
-                    .font(.system(size: 40))
-                    .foregroundColor(workout.color)
-            }
-            
-            VStack(spacing: 10) {
-                Text(workout.name)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-                
-                Text("\(workout.duration) min")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.secondary)
-                
-                Text(workout.intensity)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(workout.color)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(workout.color.opacity(0.2))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(workout.color.opacity(0.3), lineWidth: 1)
-                    )
-                    .cornerRadius(10)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
-        .background(
-            Color(.systemBackground)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-        )
-        .cornerRadius(24)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: isPressed)
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = false
-                }
-            }
-        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
 
-// MARK: - Enhanced Trend Row with much better visibility
-struct EnhancedTrendRow: View {
-    let trend: Trend
+// MARK: - Recent Workouts View
+struct RecentWorkoutsView: View {
+    let workouts: [Workout]
     
     var body: some View {
-        HStack(spacing: 22) {
-            ZStack {
-                Circle()
-                    .fill(trend.color.opacity(0.25))
-                    .frame(width: 60, height: 60)
+        VStack(spacing: 16) {
+            HStack {
+                Text("Recent Workouts")
+                    .font(.title2)
+                    .fontWeight(.bold)
                 
-                Image(systemName: trend.icon)
-                    .font(.system(size: 26))
-                    .foregroundColor(trend.color)
+                Spacer()
+                
+                NavigationLink("View All", destination: WorkoutsView(workouts: .constant([]), showingWorkoutSheet: .constant(false)))
+                    .font(.subheadline)
+                    .foregroundColor(.green)
             }
             
-            VStack(alignment: .leading, spacing: 10) {
-                Text(trend.title)
-                    .font(.system(size: 21, weight: .semibold, design: .rounded))
+            if workouts.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "figure.run")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    
+                    Text("No workouts yet")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Start your first workout to see it here")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+            } else {
+                ForEach(workouts.prefix(3)) { workout in
+                    WorkoutCard(workout: workout)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(20)
+    }
+}
+
+// MARK: - Workout Card
+struct WorkoutCard: View {
+    let workout: Workout
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: workout.type.icon)
+                .font(.title2)
+                .foregroundColor(workout.type.color)
+                .frame(width: 40, height: 40)
+                .background(workout.type.color.opacity(0.1))
+                .cornerRadius(12)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(workout.name)
+                    .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text(trend.value)
-                    .font(.system(size: 19, weight: .medium))
+                Text(workout.type.rawValue)
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                Text(trend.trend)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(trend.color)
+                HStack(spacing: 16) {
+                    Label("\(Int(workout.duration/60))m", systemImage: "clock")
+                    Label("\(workout.calories) cal", systemImage: "flame")
+                    if let distance = workout.distance {
+                        Label(String(format: "%.1f km", distance), systemImage: "figure.walk")
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            VStack(alignment: .trailing, spacing: 8) {
-                HStack(spacing: 10) {
-                    Image(systemName: trend.isPositive ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(trend.isPositive ? .green : .red)
-                    
-                    Text(trend.change)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(trend.isPositive ? .green : .red)
-                }
-                
-                Text(trend.isPositive ? "vs last week" : "vs last week")
-                    .font(.system(size: 14))
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(formatDate(workout.startTime))
+                    .font(.caption)
                     .foregroundColor(.secondary)
+                
+                if workout.isActive {
+                    Text("Active")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(8)
+                }
             }
         }
-        .padding(26)
-        .background(
-            Color(.systemBackground)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-        )
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Quick Actions View
+struct QuickActionsView: View {
+    @Binding var showingWorkoutSheet: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Quick Actions")
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
+                QuickActionButton(
+                    title: "Start Workout",
+                    icon: "play.fill",
+                    color: .green
+                ) {
+                    showingWorkoutSheet = true
+                }
+                
+                QuickActionButton(
+                    title: "Log Water",
+                    icon: "drop.fill",
+                    color: .blue
+                ) {
+                    // Handle water logging
+                }
+                
+                QuickActionButton(
+                    title: "Set Reminder",
+                    icon: "bell.fill",
+                    color: .orange
+                ) {
+                    // Handle reminder setting
+                }
+                
+                QuickActionButton(
+                    title: "View Progress",
+                    icon: "chart.line.uptrend.xyaxis",
+                    color: .purple
+                ) {
+                    // Handle progress viewing
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
         .cornerRadius(20)
     }
 }
 
-// MARK: - Enhanced Weekly Summary Card with much better visibility
-struct EnhancedWeeklySummaryCard: View {
+// MARK: - Quick Action Button
+struct QuickActionButton: View {
     let title: String
-    let value: String
-    let subtitle: String
-    let color: Color
     let icon: String
-    let progress: Double
+    let color: Color
+    let action: () -> Void
     
     var body: some View {
-        VStack(spacing: 18) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.25))
-                    .frame(width: 70, height: 70)
-                
+        Button(action: action) {
+            VStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 32))
+                    .font(.title2)
                     .foregroundColor(color)
-            }
-            
-            VStack(spacing: 8) {
-                Text(value)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-                
-                Text(subtitle)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.secondary)
                 
                 Text(title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.secondary)
-                
-                // Enhanced progress bar with much better visibility
-                ProgressView(value: progress)
-                    .progressViewStyle(LinearProgressViewStyle(tint: color))
-                    .frame(height: 6)
-                    .scaleEffect(x: 1, y: 1, anchor: .center)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Workouts View
+struct WorkoutsView: View {
+    @Binding var workouts: [Workout]
+    @Binding var showingWorkoutSheet: Bool
+    
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(workouts) { workout in
+                    WorkoutCard(workout: workout)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+            }
+            .listStyle(PlainListStyle())
+            .navigationTitle("Workouts")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Add") {
+                        showingWorkoutSheet = true
+                    }
+                }
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .background(
-            Color(.systemBackground)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-        )
+    }
+}
+
+// MARK: - Heart Rate View
+struct HeartRateView: View {
+    @Binding var fitnessData: FitnessData
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Current Heart Rate
+                    VStack(spacing: 16) {
+                        Text("Current Heart Rate")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("\(fitnessData.heartRate)")
+                            .font(.system(size: 72, weight: .bold, design: .rounded))
+                            .foregroundColor(.red)
+                        
+                        Text("BPM")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                        
+                        // Heart Rate Zone
+                        HeartRateZoneView(heartRate: fitnessData.heartRate)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(20)
+                    
+                    // Heart Rate History (simulated)
+                    HeartRateHistoryView()
+                }
+                .padding()
+            }
+            .navigationTitle("Heart Rate")
+        }
+    }
+}
+
+// MARK: - Heart Rate Zone View
+struct HeartRateZoneView: View {
+    let heartRate: Int
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(zoneName)
+                .font(.headline)
+                .foregroundColor(zoneColor)
+            
+            Text(zoneDescription)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .background(zoneColor.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private var zoneName: String {
+        if heartRate < 60 { return "Resting" }
+        else if heartRate < 100 { return "Light" }
+        else if heartRate < 140 { return "Moderate" }
+        else if heartRate < 170 { return "Vigorous" }
+        else { return "Maximum" }
+    }
+    
+    private var zoneColor: Color {
+        if heartRate < 60 { return .blue }
+        else if heartRate < 100 { return .green }
+        else if heartRate < 140 { return .yellow }
+        else if heartRate < 170 { return .orange }
+        else { return .red }
+    }
+    
+    private var zoneDescription: String {
+        if heartRate < 60 { return "Resting heart rate" }
+        else if heartRate < 100 { return "Light activity zone" }
+        else if heartRate < 140 { return "Moderate exercise zone" }
+        else if heartRate < 170 { return "Vigorous exercise zone" }
+        else { return "Maximum effort zone" }
+    }
+}
+
+// MARK: - Heart Rate History View
+struct HeartRateHistoryView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Today's Heart Rate")
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            // Simulated heart rate chart
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.red.opacity(0.1))
+                .frame(height: 200)
+                .overlay(
+                    VStack {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 40))
+                            .foregroundColor(.red)
+                        
+                        Text("Heart Rate Chart")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("Tap to view detailed history")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                )
+        }
+        .padding()
+        .background(Color(.systemGray6))
         .cornerRadius(20)
     }
 }
 
-// MARK: - Enhanced Add Workout View with much better visibility
-struct EnhancedAddWorkoutView: View {
-    @Environment(\.dismiss) private var dismiss
+// MARK: - Sleep View
+struct SleepView: View {
+    @Binding var fitnessData: FitnessData
     
     var body: some View {
         NavigationView {
-            ZStack {
-                Color(.systemBackground).ignoresSafeArea()
-                
-                VStack(spacing: 32) {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 24),
-                        GridItem(.flexible(), spacing: 24)
-                    ], spacing: 24) {
-                        ForEach(enhancedWorkoutTypes, id: \.id) { workoutType in
-                            EnhancedWorkoutTypeCard(workoutType: workoutType)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    
-                    Spacer()
-                }
-                .padding(.top, 24)
-            }
-            .navigationTitle("Add Walking Workout")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.blue)
-                    .font(.system(size: 17, weight: .medium))
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Enhanced Workout Type Card with much better visibility
-struct EnhancedWorkoutTypeCard: View {
-    let workoutType: EnhancedWorkoutType
-    @State private var isPressed = false
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                Circle()
-                    .fill(workoutType.color.opacity(0.25))
-                    .frame(width: 110, height: 110)
-                
-                Image(systemName: workoutType.icon)
-                    .font(.system(size: 52))
-                    .foregroundColor(workoutType.color)
-            }
-            
-            VStack(spacing: 10) {
-                Text(workoutType.name)
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                
-                Text(workoutType.description)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-        .background(
-            Color(.systemBackground)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-        )
-        .cornerRadius(24)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: isPressed)
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = false
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Enhanced Workout Detail View with much better visibility
-struct EnhancedWorkoutDetailView: View {
-    let workout: Workout
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color(.systemBackground).ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Enhanced hero section with much better visibility
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 24)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [workout.color.opacity(0.3), workout.color.opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(height: 220)
-                                .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 8)
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Sleep Summary
+                    VStack(spacing: 16) {
+                        Text("Last Night's Sleep")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        HStack(spacing: 40) {
+                            VStack(spacing: 8) {
+                                Text(String(format: "%.1f", fitnessData.sleepHours))
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundColor(.purple)
+                                
+                                Text("Hours")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            }
                             
-                            VStack(spacing: 18) {
-                                Image(systemName: workout.icon)
-                                    .font(.system(size: 70))
-                                    .foregroundColor(workout.color)
+                            VStack(spacing: 8) {
+                                Text("\(fitnessData.wakeUps)")
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundColor(.blue)
                                 
-                                Text(workout.name)
-                                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                                
-                                Text(workout.type)
-                                    .font(.system(size: 18, weight: .medium))
+                                Text("Wake-ups")
+                                    .font(.title3)
                                     .foregroundColor(.secondary)
                             }
                         }
                         
-                        // Enhanced stats grid with much better visibility
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 20) {
-                            EnhancedStatCard(title: "Duration", value: "\(workout.duration) min", icon: "clock", color: .blue)
-                            EnhancedStatCard(title: "Calories", value: "\(workout.calories) cal", icon: "flame.fill", color: .red)
-                            
-                            if let distance = workout.distance {
-                                EnhancedStatCard(title: "Distance", value: distance, icon: "location", color: .green)
-                            }
-                            
-                            if let pace = workout.pace {
-                                EnhancedStatCard(title: "Pace", value: pace, icon: "speedometer", color: .orange)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        
-                        Spacer(minLength: 40)
+                        // Sleep Quality
+                        SleepQualityView(sleepHours: fitnessData.sleepHours)
                     }
-                    .padding(.top, 24)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(20)
+                    
+                    // Sleep Tips
+                    SleepTipsView()
                 }
+                .padding()
             }
-            .navigationTitle("Walking Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.blue)
-                }
-            }
+            .navigationTitle("Sleep")
         }
     }
 }
 
-// MARK: - Enhanced Stat Card with much better visibility
-struct EnhancedStatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
+// MARK: - Sleep Quality View
+struct SleepQualityView: View {
+    let sleepHours: Double
     
     var body: some View {
-        VStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.2))
-                    .frame(width: 60, height: 60)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 28))
-                    .foregroundColor(color)
-            }
+        VStack(spacing: 8) {
+            Text(qualityText)
+                .font(.headline)
+                .foregroundColor(qualityColor)
             
-            VStack(spacing: 6) {
-                Text(value)
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.primary)
-                
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
+            Text(qualityDescription)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .background(qualityColor.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private var qualityText: String {
+        if sleepHours >= 8 { return "Excellent" }
+        else if sleepHours >= 7 { return "Good" }
+        else if sleepHours >= 6 { return "Fair" }
+        else { return "Poor" }
+    }
+    
+    private var qualityColor: Color {
+        if sleepHours >= 8 { return .green }
+        else if sleepHours >= 7 { return .blue }
+        else if sleepHours >= 6 { return .yellow }
+        else { return .red }
+    }
+    
+    private var qualityDescription: String {
+        if sleepHours >= 8 { return "Great job! You're getting optimal sleep." }
+        else if sleepHours >= 7 { return "Good sleep duration. Keep it up!" }
+        else if sleepHours >= 6 { return "Consider getting more sleep for better health." }
+        else { return "Try to increase your sleep duration for optimal health." }
+    }
+}
+
+// MARK: - Sleep Tips View
+struct SleepTipsView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Sleep Tips")
+                .font(.title2)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            VStack(spacing: 12) {
+                TipRow(icon: "moon.fill", title: "Stick to a schedule", description: "Go to bed and wake up at the same time every day")
+                TipRow(icon: "bed.double.fill", title: "Create a routine", description: "Develop a relaxing bedtime routine")
+                TipRow(icon: "iphone", title: "Limit screen time", description: "Avoid screens 1 hour before bedtime")
+                TipRow(icon: "thermometer", title: "Keep it cool", description: "Maintain a cool, comfortable bedroom temperature")
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-        .background(
-            Color(.systemBackground)
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(20)
+    }
+}
+
+// MARK: - Tip Row
+struct TipRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(.purple)
+                .frame(width: 30)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Achievements View
+struct AchievementsView: View {
+    @Binding var achievements: [Achievement]
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Progress Overview
+                    VStack(spacing: 16) {
+                        Text("Achievement Progress")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        HStack(spacing: 40) {
+                            VStack(spacing: 8) {
+                                Text("\(achievements.filter { $0.isUnlocked }.count)")
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundColor(.green)
+                                
+                                Text("Unlocked")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("\(achievements.count)")
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundColor(.blue)
+                                
+                                Text("Total")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(20)
+                    
+                    // Achievements List
+                    VStack(spacing: 16) {
+                        Text("All Achievements")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        ForEach(achievements) { achievement in
+                            AchievementCard(achievement: achievement)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Achievements")
+        }
+    }
+}
+
+// MARK: - Achievement Card
+struct AchievementCard: View {
+    let achievement: Achievement
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: achievement.icon)
+                .font(.title2)
+                .foregroundColor(achievement.isUnlocked ? achievement.color : .gray)
+                .frame(width: 40, height: 40)
+                .background((achievement.isUnlocked ? achievement.color : .gray).opacity(0.1))
+                .cornerRadius(12)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(achievement.name)
+                    .font(.headline)
+                    .foregroundColor(achievement.isUnlocked ? .primary : .secondary)
+                
+                Text(achievement.description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                if !achievement.isUnlocked {
+                    ProgressView(value: achievement.progress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: achievement.color))
+                    
+                    Text("\(Int(achievement.progress * 100))% Complete")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            if achievement.isUnlocked {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.green)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+}
+
+// MARK: - Workout Sheet
+struct WorkoutSheet: View {
+    @Binding var workouts: [Workout]
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var selectedType: WorkoutType = .walking
+    @State private var workoutName = ""
+    @State private var duration: TimeInterval = 1800 // 30 minutes
+    @State private var calories = 0
+    @State private var distance: Double = 0.0
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Workout Details") {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach(WorkoutType.allCases, id: \.self) { type in
+                            Label(type.rawValue, systemImage: type.icon)
+                                .tag(type)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    
+                    TextField("Workout Name", text: $workoutName)
+                    
+                    HStack {
+                        Text("Duration")
+                        Spacer()
+                        Text("\(Int(duration/60)) minutes")
+                    }
+                    
+                    Slider(value: $duration, in: 300...7200, step: 300)
+                    
+                    HStack {
+                        Text("Calories")
+                        Spacer()
+                        TextField("Calories", value: $calories, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    
+                    HStack {
+                        Text("Distance (km)")
+                        Spacer()
+                        TextField("Distance", value: $distance, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+            }
+            .navigationTitle("New Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        saveWorkout()
+                    }
+                    .disabled(workoutName.isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func saveWorkout() {
+        let newWorkout = Workout(
+            name: workoutName,
+            type: selectedType,
+            duration: duration,
+            calories: calories,
+            distance: distance > 0 ? distance : nil,
+            heartRate: [Int.random(in: 120...160)],
+            startTime: Date().addingTimeInterval(-duration),
+            endTime: Date(),
+            isActive: false
         )
-        .cornerRadius(18)
+        
+        workouts.insert(newWorkout, at: 0)
+        dismiss()
     }
 }
 
 
-
-#Preview {
-    ContentView()
-}
 
