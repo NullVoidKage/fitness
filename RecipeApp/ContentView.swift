@@ -4250,47 +4250,115 @@ struct FamilyStatsSummary: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Family Health Summary")
-                .font(.title2)
-                .fontWeight(.bold)
+        VStack(spacing: 16) {
+            // Header with icon
+            HStack {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.title2)
+                    .foregroundColor(.pink)
+                
+                Text("Family Health Summary")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                Spacer()
+            }
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
-                SummaryCard(
+            // Modern metrics list
+            VStack(spacing: 12) {
+                FamilyMetricRow(
+                    icon: "figure.walk",
                     title: "Total Steps",
                     value: "\(totalSteps)",
-                    icon: "figure.walk",
-                    color: .green
+                    color: .green,
+                    progress: 0.8
                 )
                 
-                SummaryCard(
+                FamilyMetricRow(
+                    icon: "flame.fill",
                     title: "Total Calories",
                     value: "\(totalCalories)",
-                    icon: "flame",
-                    color: .orange
+                    color: .orange,
+                    progress: 0.6
                 )
                 
-                SummaryCard(
+                FamilyMetricRow(
+                    icon: "location.fill",
                     title: "Total Distance",
                     value: String(format: "%.1f km", totalDistance),
-                    icon: "location.fill",
-                    color: .blue
+                    color: .blue,
+                    progress: 0.7
                 )
                 
-                SummaryCard(
+                FamilyMetricRow(
+                    icon: "heart.fill",
                     title: "Avg Heart Rate",
                     value: "\(averageHeartRate) bpm",
-                    icon: "heart.fill",
-                    color: .red
+                    color: .red,
+                    progress: 0.9
                 )
             }
         }
-        .padding(24)
+        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(.systemGray5), lineWidth: 1)
+                )
         )
+    }
+}
+
+// MARK: - Family Metric Row
+struct FamilyMetricRow: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    let progress: Double
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Icon with background
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(color)
+            }
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            // Progress indicator
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(Int(progress * 100))%")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(color)
+                
+                ProgressView(value: progress)
+                    .progressViewStyle(LinearProgressViewStyle(tint: color))
+                    .frame(width: 60)
+            }
+        }
+        .padding(.vertical, 8)
     }
 }
 
