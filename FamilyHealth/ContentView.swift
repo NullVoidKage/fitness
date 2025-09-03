@@ -3298,6 +3298,7 @@ struct SummaryMetricCard: View {
 
 // MARK: - Onboarding and Family Setup System
 struct OnboardingView: View {
+    @Binding var hasCompletedOnboarding: Bool
     @StateObject private var familyManager = FamilyManager.shared
     @State private var currentStep = 0
     @State private var showingFamilySetup = false
@@ -3322,7 +3323,7 @@ struct OnboardingView: View {
                     FamilyChoiceStepView(currentStep: $currentStep, showingFamilySetup: $showingFamilySetup)
                         .tag(2)
                     
-                    PermissionsStepView(currentStep: $currentStep)
+                    PermissionsStepView(currentStep: $currentStep, hasCompletedOnboarding: $hasCompletedOnboarding)
                         .tag(3)
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
@@ -3597,6 +3598,7 @@ struct FamilyOptionCard: View {
 
 struct PermissionsStepView: View {
     @Binding var currentStep: Int
+    @Binding var hasCompletedOnboarding: Bool
     @State private var healthKitAuthorized = false
     @State private var notificationsAuthorized = false
     
@@ -3643,6 +3645,7 @@ struct PermissionsStepView: View {
             Button("Complete Setup") {
                 // Complete onboarding
                 UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                hasCompletedOnboarding = true
             }
             .font(.headline)
             .foregroundColor(.white)
@@ -4041,7 +4044,7 @@ struct ContentView: View {
     
     var body: some View {
         if !hasCompletedOnboarding {
-            OnboardingView()
+            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
         } else {
             TabView(selection: $selectedTab) {
             // Enhanced Dashboard Tab
