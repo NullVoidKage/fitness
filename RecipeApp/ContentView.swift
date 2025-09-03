@@ -39,6 +39,1813 @@ struct WeeklyHealthDigest {
     }
 }
 
+// MARK: - Enhanced Health Data Models
+struct HealthMetrics: Codable {
+    // Basic metrics
+    var steps: Int = 0
+    var heartRate: Int = 0
+    var calories: Int = 0
+    var distance: Double = 0.0
+    var sleep: Double = 0.0
+    
+    // Enhanced metrics
+    var bloodPressureSystolic: Int = 0
+    var bloodPressureDiastolic: Int = 0
+    var weight: Double = 0.0
+    var bmi: Double = 0.0
+    var bodyFatPercentage: Double = 0.0
+    var vo2Max: Double = 0.0
+    
+    // Workout metrics
+    var workoutMinutes: Int = 0
+    var activeCalories: Int = 0
+    var exerciseMinutes: Int = 0
+    var standHours: Int = 0
+    
+    // Nutrition metrics
+    var waterIntake: Double = 0.0 // in liters
+    var calorieIntake: Int = 0
+    var protein: Double = 0.0 // in grams
+    var carbs: Double = 0.0 // in grams
+    var fat: Double = 0.0 // in grams
+    
+    // Mental health metrics
+    var moodScore: Int = 5 // 1-10 scale
+    var stressLevel: Int = 5 // 1-10 scale
+    var meditationMinutes: Int = 0
+    var mindfulnessScore: Int = 5 // 1-10 scale
+    
+    // Calculated properties
+    var bloodPressureCategory: String {
+        if bloodPressureSystolic == 0 || bloodPressureDiastolic == 0 {
+            return "Not measured"
+        } else if bloodPressureSystolic < 120 && bloodPressureDiastolic < 80 {
+            return "Normal"
+        } else if bloodPressureSystolic < 130 && bloodPressureDiastolic < 80 {
+            return "Elevated"
+        } else if bloodPressureSystolic < 140 || bloodPressureDiastolic < 90 {
+            return "High Stage 1"
+        } else {
+            return "High Stage 2"
+        }
+    }
+    
+    var bmiCategory: String {
+        if bmi == 0 {
+            return "Not calculated"
+        } else if bmi < 18.5 {
+            return "Underweight"
+        } else if bmi < 25 {
+            return "Normal"
+        } else if bmi < 30 {
+            return "Overweight"
+        } else {
+            return "Obese"
+        }
+    }
+    
+    var overallHealthScore: Int {
+        var score = 0
+        
+        // Steps (0-25 points)
+        if steps >= 10000 { score += 25 }
+        else if steps >= 7500 { score += 20 }
+        else if steps >= 5000 { score += 15 }
+        else if steps >= 2500 { score += 10 }
+        else { score += 5 }
+        
+        // Heart rate (0-15 points)
+        if heartRate >= 60 && heartRate <= 100 { score += 15 }
+        else if heartRate >= 50 && heartRate <= 110 { score += 10 }
+        else { score += 5 }
+        
+        // Sleep (0-20 points)
+        if sleep >= 7 && sleep <= 9 { score += 20 }
+        else if sleep >= 6 && sleep <= 10 { score += 15 }
+        else if sleep >= 5 { score += 10 }
+        else { score += 5 }
+        
+        // Workout (0-15 points)
+        if workoutMinutes >= 30 { score += 15 }
+        else if workoutMinutes >= 15 { score += 10 }
+        else if workoutMinutes > 0 { score += 5 }
+        
+        // Mood (0-15 points)
+        if moodScore >= 8 { score += 15 }
+        else if moodScore >= 6 { score += 10 }
+        else if moodScore >= 4 { score += 5 }
+        
+        // Water intake (0-10 points)
+        if waterIntake >= 2.5 { score += 10 }
+        else if waterIntake >= 2.0 { score += 8 }
+        else if waterIntake >= 1.5 { score += 5 }
+        else { score += 2 }
+        
+        return min(score, 100)
+    }
+}
+
+struct WorkoutData: Codable, Identifiable {
+    let id = UUID()
+    let type: String
+    let duration: Int // in minutes
+    let calories: Int
+    let date: Date
+    let intensity: String // Low, Moderate, High
+    let heartRateAvg: Int
+    let heartRateMax: Int
+}
+
+struct NutritionData: Codable, Identifiable {
+    let id = UUID()
+    let date: Date
+    let calories: Int
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let water: Double
+    let meals: [MealData]
+}
+
+struct MealData: Codable, Identifiable {
+    let id = UUID()
+    let name: String
+    let calories: Int
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let time: Date
+}
+
+struct MentalHealthData: Codable, Identifiable {
+    let id = UUID()
+    let date: Date
+    let moodScore: Int
+    let stressLevel: Int
+    let meditationMinutes: Int
+    let mindfulnessScore: Int
+    let notes: String
+}
+
+struct HealthGoals: Codable {
+    var dailySteps: Int = 10000
+    var dailyCalories: Int = 2000
+    var dailyWater: Double = 2.5
+    var weeklyWorkouts: Int = 3
+    var dailySleep: Double = 8.0
+    var targetWeight: Double = 0.0
+    var targetBMI: Double = 22.0
+}
+
+struct UserPreferences: Codable {
+    var shareHealthData: Bool = true
+    var shareAchievements: Bool = true
+    var shareLocation: Bool = false
+    var allowInvites: Bool = true
+    var theme: String = "system" // light, dark, system
+    var units: String = "metric" // metric, imperial
+    var language: String = "en"
+}
+
+struct NotificationSettings: Codable {
+    var achievementNotifications: Bool = true
+    var goalReminders: Bool = true
+    var familyUpdates: Bool = true
+    var workoutReminders: Bool = true
+    var mealReminders: Bool = false
+    var meditationReminders: Bool = false
+    var quietHours: Bool = true
+    var quietStart: String = "22:00"
+    var quietEnd: String = "08:00"
+}
+
+// MARK: - Smart Notifications System
+struct SmartNotification: Identifiable, Codable {
+    let id = UUID()
+    let type: NotificationType
+    let title: String
+    let message: String
+    let memberName: String
+    let timestamp: Date
+    let isRead: Bool
+    let priority: NotificationPriority
+    let actionType: NotificationAction?
+    
+    enum NotificationType: String, Codable, CaseIterable {
+        case achievement = "achievement"
+        case goalReminder = "goal_reminder"
+        case familyUpdate = "family_update"
+        case workoutReminder = "workout_reminder"
+        case mealReminder = "meal_reminder"
+        case meditationReminder = "meditation_reminder"
+        case challenge = "challenge"
+        case milestone = "milestone"
+        case encouragement = "encouragement"
+        case healthAlert = "health_alert"
+    }
+    
+    enum NotificationPriority: String, Codable {
+        case low = "low"
+        case medium = "medium"
+        case high = "high"
+        case urgent = "urgent"
+    }
+    
+    enum NotificationAction: String, Codable {
+        case viewProfile = "view_profile"
+        case joinChallenge = "join_challenge"
+        case logWorkout = "log_workout"
+        case logMeal = "log_meal"
+        case startMeditation = "start_meditation"
+        case viewAchievement = "view_achievement"
+        case shareUpdate = "share_update"
+        case viewGoals = "view_goals"
+        case viewFamily = "view_family"
+    }
+}
+
+class NotificationManager: ObservableObject {
+    static let shared = NotificationManager()
+    
+    @Published var notifications: [SmartNotification] = []
+    @Published var unreadCount: Int = 0
+    
+    private var notificationTimer: Timer?
+    private let userDefaults = UserDefaults.standard
+    
+    private init() {
+        loadNotifications()
+        generateSampleNotifications()
+        startSmartNotificationScheduler()
+    }
+    
+    func addNotification(_ notification: SmartNotification) {
+        notifications.insert(notification, at: 0)
+        updateUnreadCount()
+        saveNotifications()
+        
+        // Send local notification if app is in background
+        scheduleLocalNotification(notification)
+    }
+    
+    func markAsRead(_ notification: SmartNotification) {
+        if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
+            notifications[index] = SmartNotification(
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                memberName: notification.memberName,
+                timestamp: notification.timestamp,
+                isRead: true,
+                priority: notification.priority,
+                actionType: notification.actionType
+            )
+            updateUnreadCount()
+            saveNotifications()
+        }
+    }
+    
+    func markAllAsRead() {
+        for i in 0..<notifications.count {
+            notifications[i] = SmartNotification(
+                type: notifications[i].type,
+                title: notifications[i].title,
+                message: notifications[i].message,
+                memberName: notifications[i].memberName,
+                timestamp: notifications[i].timestamp,
+                isRead: true,
+                priority: notifications[i].priority,
+                actionType: notifications[i].actionType
+            )
+        }
+        updateUnreadCount()
+        saveNotifications()
+    }
+    
+    func clearOldNotifications() {
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        notifications = notifications.filter { $0.timestamp > cutoffDate }
+        updateUnreadCount()
+        saveNotifications()
+    }
+    
+    private func updateUnreadCount() {
+        unreadCount = notifications.filter { !$0.isRead }.count
+    }
+    
+    private func startSmartNotificationScheduler() {
+        notificationTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
+            self.generateSmartNotifications()
+        }
+    }
+    
+    private func generateSmartNotifications() {
+        // Generate contextual notifications based on time, user behavior, and family activity
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        
+        // Morning motivation (7-9 AM)
+        if currentHour >= 7 && currentHour <= 9 {
+            generateMorningMotivation()
+        }
+        
+        // Afternoon check-in (2-4 PM)
+        if currentHour >= 14 && currentHour <= 16 {
+            generateAfternoonCheckIn()
+        }
+        
+        // Evening reflection (8-10 PM)
+        if currentHour >= 20 && currentHour <= 22 {
+            generateEveningReflection()
+        }
+        
+        // Weekend challenges
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date())
+        if weekday == 1 || weekday == 7 { // Sunday or Saturday
+            generateWeekendChallenges()
+        }
+    }
+    
+    private func generateMorningMotivation() {
+        let motivationalMessages = [
+            "Good morning! Ready to crush your health goals today? 🌅",
+            "Start your day with a healthy breakfast and some movement! 💪",
+            "Your family is counting on you to stay active today! 👨‍👩‍👧‍👦",
+            "Time to log your morning workout and inspire the family! 🏃‍♀️"
+        ]
+        
+        if let message = motivationalMessages.randomElement() {
+            let notification = SmartNotification(
+                type: .encouragement,
+                title: "Morning Motivation",
+                message: message,
+                memberName: "System",
+                timestamp: Date(),
+                isRead: false,
+                priority: .medium,
+                actionType: .logWorkout
+            )
+            addNotification(notification)
+        }
+    }
+    
+    private func generateAfternoonCheckIn() {
+        let checkInMessages = [
+            "How's your day going? Don't forget to stay hydrated! 💧",
+            "Time for a quick walk or stretch break! 🚶‍♀️",
+            "Your family is cheering you on! Keep up the great work! 👏",
+            "Halfway through the day - how are your goals looking? 📊"
+        ]
+        
+        if let message = checkInMessages.randomElement() {
+            let notification = SmartNotification(
+                type: .goalReminder,
+                title: "Afternoon Check-in",
+                message: message,
+                memberName: "System",
+                timestamp: Date(),
+                isRead: false,
+                priority: .low,
+                actionType: nil
+            )
+            addNotification(notification)
+        }
+    }
+    
+    private func generateEveningReflection() {
+        let reflectionMessages = [
+            "Great job today! Time to log your evening activities 📝",
+            "How did you do with your health goals today? 🎯",
+            "Your family would love to see your progress! Share an update 📱",
+            "Don't forget to log your meals and prepare for tomorrow! 🍽️"
+        ]
+        
+        if let message = reflectionMessages.randomElement() {
+            let notification = SmartNotification(
+                type: .encouragement,
+                title: "Evening Reflection",
+                message: message,
+                memberName: "System",
+                timestamp: Date(),
+                isRead: false,
+                priority: .medium,
+                actionType: .shareUpdate
+            )
+            addNotification(notification)
+        }
+    }
+    
+    private func generateWeekendChallenges() {
+        let challengeMessages = [
+            "Weekend family challenge: Who can get the most steps today? 🏆",
+            "Perfect weather for a family walk or bike ride! 🚴‍♀️",
+            "Weekend wellness: Try a new healthy recipe together! 👨‍🍳",
+            "Family fitness time! Let's all get moving together! 💪"
+        ]
+        
+        if let message = challengeMessages.randomElement() {
+            let notification = SmartNotification(
+                type: .challenge,
+                title: "Weekend Challenge",
+                message: message,
+                memberName: "System",
+                timestamp: Date(),
+                isRead: false,
+                priority: .high,
+                actionType: .joinChallenge
+            )
+            addNotification(notification)
+        }
+    }
+    
+    private func scheduleLocalNotification(_ notification: SmartNotification) {
+        // This would integrate with UNUserNotificationCenter for actual push notifications
+        // For now, we'll just store them locally
+    }
+    
+    private func saveNotifications() {
+        if let data = try? JSONEncoder().encode(notifications) {
+            userDefaults.set(data, forKey: "smart_notifications")
+        }
+    }
+    
+    private func loadNotifications() {
+        if let data = userDefaults.data(forKey: "smart_notifications"),
+           let loadedNotifications = try? JSONDecoder().decode([SmartNotification].self, from: data) {
+            notifications = loadedNotifications
+            updateUnreadCount()
+        }
+    }
+    
+    private func generateSampleNotifications() {
+        // Add some sample notifications for testing
+        let sampleNotifications = [
+            SmartNotification(
+                type: .achievement,
+                title: "Great Job! 🎉",
+                message: "You've completed your daily step goal for 3 days in a row!",
+                memberName: "John Doe",
+                timestamp: Date().addingTimeInterval(-3600), // 1 hour ago
+                isRead: false,
+                priority: .high,
+                actionType: .viewAchievement
+            ),
+            SmartNotification(
+                type: .goalReminder,
+                title: "Daily Goal Reminder",
+                message: "You're 2,000 steps away from your daily goal. Keep going! 💪",
+                memberName: "System",
+                timestamp: Date().addingTimeInterval(-1800), // 30 minutes ago
+                isRead: false,
+                priority: .medium,
+                actionType: .viewGoals
+            ),
+            SmartNotification(
+                type: .familyUpdate,
+                title: "Family Activity Update",
+                message: "Sarah just completed a 5K run! 🏃‍♀️",
+                memberName: "Sarah Doe",
+                timestamp: Date().addingTimeInterval(-900), // 15 minutes ago
+                isRead: false,
+                priority: .low,
+                actionType: .viewFamily
+            ),
+            SmartNotification(
+                type: .challenge,
+                title: "New Challenge Available",
+                message: "Join the '10K Steps Daily' family challenge!",
+                memberName: "System",
+                timestamp: Date().addingTimeInterval(-300), // 5 minutes ago
+                isRead: false,
+                priority: .high,
+                actionType: .joinChallenge
+            )
+        ]
+        
+        for notification in sampleNotifications {
+            notifications.append(notification)
+        }
+        updateUnreadCount()
+    }
+}
+
+// MARK: - Family Challenges System
+struct FamilyChallenge: Identifiable, Codable {
+    let id = UUID()
+    let title: String
+    let description: String
+    let type: ChallengeType
+    let duration: Int // in days
+    let startDate: Date
+    let endDate: Date
+    let target: Int
+    let unit: String
+    let reward: String
+    let isActive: Bool
+    var participants: [String] // Family member names
+    var progress: [String: Int] // Member name -> progress value
+    let leaderboard: [ChallengeParticipant]
+    
+    enum ChallengeType: String, Codable, CaseIterable {
+        case steps = "steps"
+        case calories = "calories"
+        case workouts = "workouts"
+        case water = "water"
+        case sleep = "sleep"
+        case meditation = "meditation"
+        case familyTime = "family_time"
+        case healthyMeals = "healthy_meals"
+    }
+    
+    var isCompleted: Bool {
+        return Date() > endDate
+    }
+    
+    var daysRemaining: Int {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: Date(), to: endDate)
+        return max(0, components.day ?? 0)
+    }
+    
+    var totalProgress: Int {
+        return progress.values.reduce(0, +)
+    }
+    
+    var completionPercentage: Double {
+        guard target > 0 else { return 0 }
+        return min(100.0, Double(totalProgress) / Double(target) * 100.0)
+    }
+}
+
+struct ChallengeParticipant: Identifiable, Codable {
+    let id = UUID()
+    let name: String
+    let progress: Int
+    let rank: Int
+    let avatar: String
+    let isCurrentUser: Bool
+}
+
+class ChallengeManager: ObservableObject {
+    static let shared = ChallengeManager()
+    
+    @Published var activeChallenges: [FamilyChallenge] = []
+    @Published var completedChallenges: [FamilyChallenge] = []
+    @Published var availableChallenges: [FamilyChallenge] = []
+    
+    private init() {
+        loadChallenges()
+        generateSampleChallenges()
+    }
+    
+    func createChallenge(_ challenge: FamilyChallenge) {
+        activeChallenges.append(challenge)
+        saveChallenges()
+        
+        // Notify family members
+        NotificationManager.shared.addNotification(SmartNotification(
+            type: .challenge,
+            title: "New Family Challenge!",
+            message: "\(challenge.title) - Join now and compete with your family!",
+            memberName: "System",
+            timestamp: Date(),
+            isRead: false,
+            priority: .high,
+            actionType: .joinChallenge
+        ))
+    }
+    
+    func joinChallenge(_ challengeId: UUID, memberName: String) {
+        if let index = activeChallenges.firstIndex(where: { $0.id == challengeId }) {
+            var challenge = activeChallenges[index]
+            if !challenge.participants.contains(memberName) {
+                challenge.participants.append(memberName)
+                challenge.progress[memberName] = 0
+                activeChallenges[index] = challenge
+                saveChallenges()
+            }
+        }
+    }
+    
+    func updateProgress(_ challengeId: UUID, memberName: String, progress: Int) {
+        if let index = activeChallenges.firstIndex(where: { $0.id == challengeId }) {
+            var challenge = activeChallenges[index]
+            challenge.progress[memberName] = progress
+            activeChallenges[index] = challenge
+            saveChallenges()
+            
+            // Check if challenge is completed
+            if challenge.completionPercentage >= 100 {
+                completeChallenge(challenge)
+            }
+        }
+    }
+    
+    private func completeChallenge(_ challenge: FamilyChallenge) {
+        // Move to completed challenges
+        completedChallenges.append(challenge)
+        activeChallenges.removeAll { $0.id == challenge.id }
+        
+        // Notify family
+        NotificationManager.shared.addNotification(SmartNotification(
+            type: .achievement,
+            title: "Challenge Completed! 🎉",
+            message: "Your family completed '\(challenge.title)'! Great job everyone!",
+            memberName: "System",
+            timestamp: Date(),
+            isRead: false,
+            priority: .high,
+            actionType: .viewAchievement
+        ))
+        
+        saveChallenges()
+    }
+    
+    private func generateSampleChallenges() {
+        if activeChallenges.isEmpty {
+            let sampleChallenges = [
+                FamilyChallenge(
+                    title: "10K Steps Daily",
+                    description: "Everyone aims for 10,000 steps each day for a week",
+                    type: .steps,
+                    duration: 7,
+                    startDate: Date(),
+                    endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date(),
+                    target: 70000, // 10K * 7 days
+                    unit: "steps",
+                    reward: "Family movie night",
+                    isActive: true,
+                    participants: [],
+                    progress: [:],
+                    leaderboard: []
+                ),
+                FamilyChallenge(
+                    title: "Hydration Heroes",
+                    description: "Drink 8 glasses of water daily",
+                    type: .water,
+                    duration: 5,
+                    startDate: Date(),
+                    endDate: Calendar.current.date(byAdding: .day, value: 5, to: Date()) ?? Date(),
+                    target: 40, // 8 glasses * 5 days
+                    unit: "glasses",
+                    reward: "New water bottles for everyone",
+                    isActive: true,
+                    participants: [],
+                    progress: [:],
+                    leaderboard: []
+                ),
+                FamilyChallenge(
+                    title: "Sleep Champions",
+                    description: "Get 8 hours of sleep every night",
+                    type: .sleep,
+                    duration: 10,
+                    startDate: Date(),
+                    endDate: Calendar.current.date(byAdding: .day, value: 10, to: Date()) ?? Date(),
+                    target: 80, // 8 hours * 10 days
+                    unit: "hours",
+                    reward: "Sleep-in weekend",
+                    isActive: true,
+                    participants: [],
+                    progress: [:],
+                    leaderboard: []
+                )
+            ]
+            
+            activeChallenges = sampleChallenges
+            saveChallenges()
+        }
+    }
+    
+    private func saveChallenges() {
+        let encoder = JSONEncoder()
+        if let activeData = try? encoder.encode(activeChallenges),
+           let completedData = try? encoder.encode(completedChallenges) {
+            UserDefaults.standard.set(activeData, forKey: "active_challenges")
+            UserDefaults.standard.set(completedData, forKey: "completed_challenges")
+        }
+    }
+    
+    private func loadChallenges() {
+        let decoder = JSONDecoder()
+        if let activeData = UserDefaults.standard.data(forKey: "active_challenges"),
+           let active = try? decoder.decode([FamilyChallenge].self, from: activeData) {
+            activeChallenges = active
+        }
+        if let completedData = UserDefaults.standard.data(forKey: "completed_challenges"),
+           let completed = try? decoder.decode([FamilyChallenge].self, from: completedData) {
+            completedChallenges = completed
+        }
+    }
+}
+
+// MARK: - Advanced Analytics System
+struct HealthAnalytics: Codable {
+    let memberId: UUID
+    let period: AnalyticsPeriod
+    let startDate: Date
+    let endDate: Date
+    let metrics: AnalyticsMetrics
+    let trends: [TrendData]
+    let insights: [HealthInsight]
+    let recommendations: [HealthRecommendation]
+    
+    enum AnalyticsPeriod: String, Codable {
+        case daily = "daily"
+        case weekly = "weekly"
+        case monthly = "monthly"
+        case yearly = "yearly"
+    }
+}
+
+struct AnalyticsMetrics: Codable {
+    var averageSteps: Double = 0
+    var averageHeartRate: Double = 0
+    var averageCalories: Double = 0
+    var averageDistance: Double = 0
+    var averageSleep: Double = 0
+    var averageWorkoutMinutes: Double = 0
+    var averageWaterIntake: Double = 0
+    var averageMoodScore: Double = 0
+    var averageStressLevel: Double = 0
+    
+    var consistencyScore: Double = 0 // 0-100
+    var improvementRate: Double = 0 // percentage change
+    var goalAchievementRate: Double = 0 // percentage of goals met
+    var healthScore: Double = 0 // overall health score
+}
+
+struct HealthInsight: Identifiable, Codable {
+    let id = UUID()
+    let type: InsightType
+    let title: String
+    let description: String
+    let impact: InsightImpact
+    let actionable: Bool
+    let category: InsightCategory
+    
+    enum InsightType: String, Codable {
+        case positive = "positive"
+        case warning = "warning"
+        case improvement = "improvement"
+        case achievement = "achievement"
+    }
+    
+    enum InsightImpact: String, Codable {
+        case low = "low"
+        case medium = "medium"
+        case high = "high"
+        case critical = "critical"
+    }
+    
+    enum InsightCategory: String, Codable {
+        case activity = "activity"
+        case sleep = "sleep"
+        case nutrition = "nutrition"
+        case mentalHealth = "mental_health"
+        case consistency = "consistency"
+        case goals = "goals"
+    }
+}
+
+struct HealthRecommendation: Identifiable, Codable {
+    let id = UUID()
+    let title: String
+    let description: String
+    let category: RecommendationCategory
+    let priority: RecommendationPriority
+    let estimatedImpact: String
+    let actionSteps: [String]
+    
+    enum RecommendationCategory: String, Codable {
+        case exercise = "exercise"
+        case nutrition = "nutrition"
+        case sleep = "sleep"
+        case stress = "stress"
+        case hydration = "hydration"
+        case consistency = "consistency"
+    }
+    
+    enum RecommendationPriority: String, Codable {
+        case low = "low"
+        case medium = "medium"
+        case high = "high"
+    }
+}
+
+struct TrendData: Identifiable, Codable {
+    let id = UUID()
+    let metric: String
+    let value: Double
+    let date: Date
+    let trend: TrendDirection
+    
+    enum TrendDirection: String, Codable {
+        case up = "up"
+        case down = "down"
+        case stable = "stable"
+    }
+}
+
+class AnalyticsManager: ObservableObject {
+    static let shared = AnalyticsManager()
+    
+    @Published var familyAnalytics: [HealthAnalytics] = []
+    @Published var currentInsights: [HealthInsight] = []
+    @Published var currentRecommendations: [HealthRecommendation] = []
+    
+    private init() {
+        generateSampleAnalytics()
+    }
+    
+    func generateAnalytics(for member: FamilyMember, period: HealthAnalytics.AnalyticsPeriod) -> HealthAnalytics {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let (startDate, endDate) = getDateRange(for: period, from: now)
+        
+        let metrics = calculateMetrics(for: member, from: startDate, to: endDate)
+        let trends = generateTrends(for: member, from: startDate, to: endDate)
+        let insights = generateInsights(for: member, metrics: metrics, trends: trends)
+        let recommendations = generateRecommendations(for: member, insights: insights)
+        
+        return HealthAnalytics(
+            memberId: member.id,
+            period: period,
+            startDate: startDate,
+            endDate: endDate,
+            metrics: metrics,
+            trends: trends,
+            insights: insights,
+            recommendations: recommendations
+        )
+    }
+    
+    private func getDateRange(for period: HealthAnalytics.AnalyticsPeriod, from date: Date) -> (Date, Date) {
+        let calendar = Calendar.current
+        
+        switch period {
+        case .daily:
+            return (calendar.startOfDay(for: date), calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date)) ?? date)
+        case .weekly:
+            let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
+            return (startOfWeek, calendar.date(byAdding: .weekOfYear, value: 1, to: startOfWeek) ?? date)
+        case .monthly:
+            let startOfMonth = calendar.dateInterval(of: .month, for: date)?.start ?? date
+            return (startOfMonth, calendar.date(byAdding: .month, value: 1, to: startOfMonth) ?? date)
+        case .yearly:
+            let startOfYear = calendar.dateInterval(of: .year, for: date)?.start ?? date
+            return (startOfYear, calendar.date(byAdding: .year, value: 1, to: startOfYear) ?? date)
+        }
+    }
+    
+    private func calculateMetrics(for member: FamilyMember, from startDate: Date, to endDate: Date) -> AnalyticsMetrics {
+        // In a real app, this would calculate from historical data
+        // For now, we'll use current data as sample
+        return AnalyticsMetrics(
+            averageSteps: Double(member.healthMetrics.steps),
+            averageHeartRate: Double(member.healthMetrics.heartRate),
+            averageCalories: Double(member.healthMetrics.calories),
+            averageDistance: member.healthMetrics.distance,
+            averageSleep: member.healthMetrics.sleep,
+            averageWorkoutMinutes: Double(member.healthMetrics.workoutMinutes),
+            averageWaterIntake: member.healthMetrics.waterIntake,
+            averageMoodScore: Double(member.healthMetrics.moodScore),
+            averageStressLevel: Double(member.healthMetrics.stressLevel),
+            consistencyScore: calculateConsistencyScore(for: member),
+            improvementRate: calculateImprovementRate(for: member),
+            goalAchievementRate: calculateGoalAchievementRate(for: member),
+            healthScore: Double(member.healthMetrics.overallHealthScore)
+        )
+    }
+    
+    private func calculateConsistencyScore(for member: FamilyMember) -> Double {
+        // Simplified consistency calculation
+        let activeDays = member.activeDays
+        let totalDays = 7 // Assuming weekly calculation
+        return Double(activeDays) / Double(totalDays) * 100
+    }
+    
+    private func calculateImprovementRate(for member: FamilyMember) -> Double {
+        // Simplified improvement calculation
+        return Double.random(in: -10...20) // Sample data
+    }
+    
+    private func calculateGoalAchievementRate(for member: FamilyMember) -> Double {
+        let goals = member.healthGoals
+        var achievedGoals = 0
+        var totalGoals = 0
+        
+        if member.healthMetrics.steps >= goals.dailySteps { achievedGoals += 1 }
+        totalGoals += 1
+        
+        if member.healthMetrics.calories >= goals.dailyCalories { achievedGoals += 1 }
+        totalGoals += 1
+        
+        if member.healthMetrics.waterIntake >= goals.dailyWater { achievedGoals += 1 }
+        totalGoals += 1
+        
+        if member.healthMetrics.sleep >= goals.dailySleep { achievedGoals += 1 }
+        totalGoals += 1
+        
+        return totalGoals > 0 ? Double(achievedGoals) / Double(totalGoals) * 100 : 0
+    }
+    
+    private func generateTrends(for member: FamilyMember, from startDate: Date, to endDate: Date) -> [TrendData] {
+        // Generate sample trend data
+        return [
+            TrendData(metric: "Steps", value: Double(member.healthMetrics.steps), date: Date(), trend: .up),
+            TrendData(metric: "Heart Rate", value: Double(member.healthMetrics.heartRate), date: Date(), trend: .stable),
+            TrendData(metric: "Sleep", value: member.healthMetrics.sleep, date: Date(), trend: .up),
+            TrendData(metric: "Mood", value: Double(member.healthMetrics.moodScore), date: Date(), trend: .up)
+        ]
+    }
+    
+    private func generateInsights(for member: FamilyMember, metrics: AnalyticsMetrics, trends: [TrendData]) -> [HealthInsight] {
+        var insights: [HealthInsight] = []
+        
+        // Steps insight
+        if metrics.averageSteps >= 10000 {
+            insights.append(HealthInsight(
+                type: .positive,
+                title: "Excellent Activity Level",
+                description: "You're consistently hitting your daily step goal! Keep up the great work.",
+                impact: .high,
+                actionable: false,
+                category: .activity
+            ))
+        } else if metrics.averageSteps < 5000 {
+            insights.append(HealthInsight(
+                type: .warning,
+                title: "Low Activity Level",
+                description: "Your daily steps are below recommended levels. Try to increase your activity.",
+                impact: .high,
+                actionable: true,
+                category: .activity
+            ))
+        }
+        
+        // Sleep insight
+        if metrics.averageSleep >= 8 {
+            insights.append(HealthInsight(
+                type: .positive,
+                title: "Great Sleep Habits",
+                description: "You're getting excellent sleep duration. This supports your overall health.",
+                impact: .high,
+                actionable: false,
+                category: .sleep
+            ))
+        } else if metrics.averageSleep < 6 {
+            insights.append(HealthInsight(
+                type: .warning,
+                title: "Insufficient Sleep",
+                description: "You're not getting enough sleep. Aim for 7-9 hours nightly.",
+                impact: .critical,
+                actionable: true,
+                category: .sleep
+            ))
+        }
+        
+        // Mood insight
+        if metrics.averageMoodScore >= 8 {
+            insights.append(HealthInsight(
+                type: .positive,
+                title: "Positive Mood",
+                description: "Your mood scores are consistently high. Great mental health!",
+                impact: .medium,
+                actionable: false,
+                category: .mentalHealth
+            ))
+        } else if metrics.averageMoodScore < 5 {
+            insights.append(HealthInsight(
+                type: .warning,
+                title: "Low Mood",
+                description: "Your mood scores are lower than usual. Consider stress management techniques.",
+                impact: .high,
+                actionable: true,
+                category: .mentalHealth
+            ))
+        }
+        
+        // Consistency insight
+        if metrics.consistencyScore >= 80 {
+            insights.append(HealthInsight(
+                type: .achievement,
+                title: "Highly Consistent",
+                description: "You're maintaining excellent consistency with your health habits.",
+                impact: .high,
+                actionable: false,
+                category: .consistency
+            ))
+        }
+        
+        return insights
+    }
+    
+    private func generateRecommendations(for member: FamilyMember, insights: [HealthInsight]) -> [HealthRecommendation] {
+        var recommendations: [HealthRecommendation] = []
+        
+        // Generate recommendations based on insights
+        for insight in insights where insight.actionable {
+            switch insight.category {
+            case .activity:
+                recommendations.append(HealthRecommendation(
+                    title: "Increase Daily Activity",
+                    description: "Try to add more movement to your daily routine.",
+                    category: .exercise,
+                    priority: .high,
+                    estimatedImpact: "15-20% increase in daily steps",
+                    actionSteps: [
+                        "Take the stairs instead of elevators",
+                        "Park farther from your destination",
+                        "Take 5-minute walking breaks every hour",
+                        "Try a new physical activity this week"
+                    ]
+                ))
+            case .sleep:
+                recommendations.append(HealthRecommendation(
+                    title: "Improve Sleep Quality",
+                    description: "Establish better sleep habits for optimal rest.",
+                    category: .sleep,
+                    priority: .high,
+                    estimatedImpact: "Better mood and energy levels",
+                    actionSteps: [
+                        "Set a consistent bedtime",
+                        "Avoid screens 1 hour before bed",
+                        "Create a relaxing bedtime routine",
+                        "Keep your bedroom cool and dark"
+                    ]
+                ))
+            case .mentalHealth:
+                recommendations.append(HealthRecommendation(
+                    title: "Stress Management",
+                    description: "Incorporate stress-reduction techniques into your routine.",
+                    category: .stress,
+                    priority: .medium,
+                    estimatedImpact: "Improved mood and overall well-being",
+                    actionSteps: [
+                        "Practice 10 minutes of meditation daily",
+                        "Try deep breathing exercises",
+                        "Engage in activities you enjoy",
+                        "Consider talking to a professional if needed"
+                    ]
+                ))
+            default:
+                break
+            }
+        }
+        
+        return recommendations
+    }
+    
+    private func generateSampleAnalytics() {
+        // Generate sample insights and recommendations
+        currentInsights = [
+            HealthInsight(
+                type: .positive,
+                title: "Family Health Trend",
+                description: "Your family's overall health score has improved by 12% this month.",
+                impact: .high,
+                actionable: false,
+                category: .consistency
+            ),
+            HealthInsight(
+                type: .achievement,
+                title: "Goal Achievement",
+                description: "You've achieved 85% of your health goals this week.",
+                impact: .medium,
+                actionable: false,
+                category: .goals
+            )
+        ]
+        
+        currentRecommendations = [
+            HealthRecommendation(
+                title: "Family Workout Challenge",
+                description: "Start a weekly family fitness challenge to boost everyone's activity.",
+                category: .exercise,
+                priority: .high,
+                estimatedImpact: "20% increase in family activity levels",
+                actionSteps: [
+                    "Choose a fun activity everyone can do",
+                    "Set a weekly goal together",
+                    "Track progress as a family",
+                    "Celebrate achievements together"
+                ]
+            )
+        ]
+    }
+}
+
+// MARK: - Apple Watch App Support
+struct WatchAppData: Codable {
+    let memberId: UUID
+    let timestamp: Date
+    let heartRate: Int
+    let steps: Int
+    let activeCalories: Int
+    let standHours: Int
+    let exerciseMinutes: Int
+    let workoutType: String?
+    let isWorkoutActive: Bool
+    let batteryLevel: Int
+    let isConnected: Bool
+}
+
+class WatchConnectivityManager: ObservableObject {
+    static let shared = WatchConnectivityManager()
+    
+    @Published var isWatchConnected = false
+    @Published var watchData: WatchAppData?
+    @Published var lastSyncTime: Date?
+    
+    private init() {
+        setupWatchConnectivity()
+    }
+    
+    private func setupWatchConnectivity() {
+        // In a real app, this would use WCSession for Apple Watch communication
+        // For now, we'll simulate watch connectivity
+        simulateWatchConnection()
+    }
+    
+    private func simulateWatchConnection() {
+        // Simulate watch connection status
+        isWatchConnected = Bool.random()
+        
+        if isWatchConnected {
+            // Generate sample watch data
+            watchData = WatchAppData(
+                memberId: UUID(),
+                timestamp: Date(),
+                heartRate: Int.random(in: 60...100),
+                steps: Int.random(in: 1000...15000),
+                activeCalories: Int.random(in: 200...800),
+                standHours: Int.random(in: 8...12),
+                exerciseMinutes: Int.random(in: 0...60),
+                workoutType: ["Running", "Walking", "Cycling", "Yoga", nil].randomElement() ?? nil,
+                isWorkoutActive: Bool.random(),
+                batteryLevel: Int.random(in: 20...100),
+                isConnected: true
+            )
+            lastSyncTime = Date()
+        }
+    }
+    
+    func syncWithWatch() {
+        // Simulate syncing with Apple Watch
+        simulateWatchConnection()
+        
+        // Update family member data with watch data
+        if let data = watchData {
+            // This would update the current user's health metrics
+            // In a real app, this would integrate with HealthKit and CloudKit
+        }
+    }
+    
+    func startWorkout(type: String) {
+        // Simulate starting a workout on Apple Watch
+        if isWatchConnected {
+            // This would send a command to the Apple Watch to start a workout
+            print("Starting \(type) workout on Apple Watch")
+        }
+    }
+    
+    func endWorkout() {
+        // Simulate ending a workout on Apple Watch
+        if isWatchConnected {
+            // This would send a command to the Apple Watch to end the workout
+            print("Ending workout on Apple Watch")
+        }
+    }
+}
+
+// MARK: - Enhanced UI Components for New Features
+struct EnhancedHealthDashboard: View {
+    @StateObject private var familyManager = FamilyManager.shared
+    @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var challengeManager = ChallengeManager.shared
+    @StateObject private var analyticsManager = AnalyticsManager.shared
+    @StateObject private var watchManager = WatchConnectivityManager.shared
+    
+    @Binding var currentUser: FamilyMember
+    @Binding var familyMembers: [FamilyMember]
+    @Binding var weeklyDigest: WeeklyHealthDigest
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Welcome Header with User Info
+                WelcomeHeaderView(currentUser: currentUser)
+                
+                // Today's Activity Section with Progress Rings
+                ActivityRingsSection(currentUser: currentUser)
+                
+                // Today's Progress Section with Progress Bars
+                TodayProgressSection(currentUser: currentUser)
+                
+                // Badges & Achievements Section
+                BadgesSection(currentUser: currentUser)
+                
+                // Enhanced Health Score Card
+                HealthScoreCard(healthScore: currentUser.healthMetrics.overallHealthScore)
+                
+                // Smart Notifications Section
+                SmartNotificationsSection()
+                
+                // Active Challenges Section
+                ActiveChallengesSection()
+                
+                // Analytics Insights Section
+                AnalyticsInsightsSection()
+                
+                // Apple Watch Status
+                AppleWatchStatusCard()
+                
+                // Enhanced Health Metrics
+                EnhancedHealthMetricsSection(currentUser: Binding(
+                    get: { currentUser },
+                    set: { currentUser = $0 }
+                ))
+                
+                // Family Overview (existing)
+                FamilyOverviewSection(familyMembers: familyMembers)
+            }
+            .padding()
+        }
+        .navigationTitle("Health Dashboard")
+        .onAppear {
+            watchManager.syncWithWatch()
+        }
+    }
+}
+
+struct WelcomeHeaderView: View {
+    let currentUser: FamilyMember
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Welcome back,")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text(currentUser.name)
+                            .font(.title)
+                            .fontWeight(.bold)
+                        
+                        Spacer()
+                        
+                        // Achievement badge
+                        HStack(spacing: 4) {
+                            Image(systemName: "medal.fill")
+                                .foregroundColor(.yellow)
+                                .font(.title3)
+                            
+                            Text("Active Walker")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.yellow.opacity(0.1))
+                        )
+                    }
+                }
+                
+                Spacer()
+            }
+            
+            // Streak information
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                    
+                    Text("\(currentUser.currentStreak) day streak")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                
+                Spacer()
+                
+                Text("Best: \(currentUser.longestStreak) days")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+}
+
+struct HealthScoreCard: View {
+    let healthScore: Int
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Overall Health Score")
+                    .font(.headline)
+                Spacer()
+                Text("\(healthScore)/100")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(healthScoreColor)
+            }
+            
+            ProgressView(value: Double(healthScore), total: 100)
+                .progressViewStyle(LinearProgressViewStyle(tint: healthScoreColor))
+            
+            Text(healthScoreDescription)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private var healthScoreColor: Color {
+        switch healthScore {
+        case 80...100: return .green
+        case 60...79: return .orange
+        case 40...59: return .yellow
+        default: return .red
+        }
+    }
+    
+    private var healthScoreDescription: String {
+        switch healthScore {
+        case 80...100: return "Excellent health! Keep up the great work!"
+        case 60...79: return "Good health! A few improvements could help."
+        case 40...59: return "Fair health. Consider lifestyle changes."
+        default: return "Health needs attention. Consult a healthcare provider."
+        }
+    }
+}
+
+struct SmartNotificationsSection: View {
+    @StateObject private var notificationManager = NotificationManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Smart Notifications")
+                    .font(.headline)
+                Spacer()
+                if notificationManager.unreadCount > 0 {
+                    Text("\(notificationManager.unreadCount)")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .clipShape(Capsule())
+                }
+            }
+            
+            if notificationManager.notifications.isEmpty {
+                Text("No notifications yet")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                ForEach(notificationManager.notifications.prefix(3)) { notification in
+                    NotificationRow(notification: notification)
+                }
+                
+                if notificationManager.notifications.count > 3 {
+                    Button("View All Notifications") {
+                        // Navigate to full notifications view
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct NotificationRow: View {
+    let notification: SmartNotification
+    @StateObject private var notificationManager = NotificationManager.shared
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: notificationIcon)
+                .foregroundColor(notificationColor)
+                .frame(width: 24, height: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(notification.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Text(notification.message)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(timeAgo)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                if !notification.isRead {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 8, height: 8)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .onTapGesture {
+            notificationManager.markAsRead(notification)
+        }
+    }
+    
+    private var notificationIcon: String {
+        switch notification.type {
+        case .achievement: return "trophy.fill"
+        case .challenge: return "gamecontroller.fill"
+        case .goalReminder: return "target"
+        case .encouragement: return "heart.fill"
+        case .familyUpdate: return "person.3.fill"
+        default: return "bell.fill"
+        }
+    }
+    
+    private var notificationColor: Color {
+        switch notification.priority {
+        case .urgent: return .red
+        case .high: return .orange
+        case .medium: return .blue
+        case .low: return .gray
+        }
+    }
+    
+    private var timeAgo: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: notification.timestamp, relativeTo: Date())
+    }
+}
+
+struct ActiveChallengesSection: View {
+    @StateObject private var challengeManager = ChallengeManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Active Challenges")
+                    .font(.headline)
+                Spacer()
+                Button("View All") {
+                    // Navigate to challenges view
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+            
+            if challengeManager.activeChallenges.isEmpty {
+                Text("No active challenges")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                ForEach(challengeManager.activeChallenges.prefix(2)) { challenge in
+                    ChallengeCard(challenge: challenge)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct ChallengeCard: View {
+    let challenge: FamilyChallenge
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(challenge.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                Text("\(challenge.daysRemaining) days left")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(challenge.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            ProgressView(value: challenge.completionPercentage, total: 100)
+                .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+            
+            HStack {
+                Text("\(Int(challenge.completionPercentage))% complete")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Reward: \(challenge.reward)")
+                    .font(.caption)
+                    .foregroundColor(.green)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+    }
+}
+
+struct AnalyticsInsightsSection: View {
+    @StateObject private var analyticsManager = AnalyticsManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Health Insights")
+                .font(.headline)
+            
+            if analyticsManager.currentInsights.isEmpty {
+                Text("No insights available")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                ForEach(analyticsManager.currentInsights.prefix(2)) { insight in
+                    InsightCard(insight: insight)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct InsightCard: View {
+    let insight: HealthInsight
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: insightIcon)
+                .foregroundColor(insightColor)
+                .frame(width: 24, height: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(insight.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Text(insight.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+    }
+    
+    private var insightIcon: String {
+        switch insight.type {
+        case .positive: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .improvement: return "arrow.up.circle.fill"
+        case .achievement: return "star.fill"
+        }
+    }
+    
+    private var insightColor: Color {
+        switch insight.type {
+        case .positive: return .green
+        case .warning: return .orange
+        case .improvement: return .blue
+        case .achievement: return .purple
+        }
+    }
+}
+
+struct AppleWatchStatusCard: View {
+    @StateObject private var watchManager = WatchConnectivityManager.shared
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "applewatch")
+                .font(.title2)
+                .foregroundColor(watchManager.isWatchConnected ? .green : .gray)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Apple Watch")
+                    .font(.headline)
+                
+                Text(watchManager.isWatchConnected ? "Connected" : "Not Connected")
+                    .font(.subheadline)
+                    .foregroundColor(watchManager.isWatchConnected ? .green : .secondary)
+                
+                if let data = watchManager.watchData {
+                    Text("Battery: \(data.batteryLevel)%")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            if watchManager.isWatchConnected {
+                Button("Sync") {
+                    watchManager.syncWithWatch()
+                }
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct EnhancedHealthMetricsSection: View {
+    @Binding var currentUser: FamilyMember
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Enhanced Health Metrics")
+                .font(.headline)
+            
+            VStack(spacing: 8) {
+                EnhancedMetricCard(
+                    title: "Blood Pressure",
+                    value: "\(currentUser.healthMetrics.bloodPressureSystolic)/\(currentUser.healthMetrics.bloodPressureDiastolic)",
+                    unit: "mmHg",
+                    category: currentUser.healthMetrics.bloodPressureCategory,
+                    color: bloodPressureColor
+                )
+                
+                EnhancedMetricCard(
+                    title: "BMI",
+                    value: String(format: "%.1f", currentUser.healthMetrics.bmi),
+                    unit: "kg/m²",
+                    category: currentUser.healthMetrics.bmiCategory,
+                    color: bmiColor
+                )
+                
+                EnhancedMetricCard(
+                    title: "Water Intake",
+                    value: String(format: "%.1f", currentUser.healthMetrics.waterIntake),
+                    unit: "L",
+                    category: waterCategory,
+                    color: .blue
+                )
+                
+                EnhancedMetricCard(
+                    title: "Mood Score",
+                    value: "\(currentUser.healthMetrics.moodScore)",
+                    unit: "/10",
+                    category: moodCategory,
+                    color: moodColor
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private var bloodPressureColor: Color {
+        let systolic = currentUser.healthMetrics.bloodPressureSystolic
+        let diastolic = currentUser.healthMetrics.bloodPressureDiastolic
+        
+        if systolic < 120 && diastolic < 80 {
+            return .green
+        } else if systolic < 140 || diastolic < 90 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+    
+    private var bmiColor: Color {
+        let bmi = currentUser.healthMetrics.bmi
+        if bmi >= 18.5 && bmi < 25 {
+            return .green
+        } else if bmi >= 25 && bmi < 30 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+    
+    private var waterCategory: String {
+        let water = currentUser.healthMetrics.waterIntake
+        if water >= 2.5 {
+            return "Excellent"
+        } else if water >= 2.0 {
+            return "Good"
+        } else if water >= 1.5 {
+            return "Fair"
+        } else {
+            return "Low"
+        }
+    }
+    
+    private var moodCategory: String {
+        let mood = currentUser.healthMetrics.moodScore
+        if mood >= 8 {
+            return "Excellent"
+        } else if mood >= 6 {
+            return "Good"
+        } else if mood >= 4 {
+            return "Fair"
+        } else {
+            return "Low"
+        }
+    }
+    
+    private var moodColor: Color {
+        let mood = currentUser.healthMetrics.moodScore
+        if mood >= 8 {
+            return .green
+        } else if mood >= 6 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+}
+
+struct EnhancedMetricCard: View {
+    let title: String
+    let value: String
+    let unit: String
+    let category: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack(alignment: .bottom, spacing: 4) {
+                    Text(value)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                    
+                    Text(unit)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(category)
+                    .font(.caption2)
+                    .foregroundColor(color)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(color.opacity(0.1))
+                    .cornerRadius(6)
+            }
+        }
+        .padding(12)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+    }
+}
+
 // MARK: - Badge Model
 struct Badge: Identifiable, Codable {
     let id = UUID()
@@ -516,11 +2323,20 @@ class FamilyManager: ObservableObject {
             isOnline: isOnline,
             isCurrentUser: isCurrentUser,
             lastUpdated: lastUpdated,
-            todaySteps: todaySteps,
-            todayHeartRate: todayHeartRate,
-            todayCalories: todayCalories,
-            todayDistance: todayDistance,
-            todaySleep: todaySleep,
+            createdDate: Date(),
+            healthMetrics: HealthMetrics(
+                steps: todaySteps,
+                heartRate: todayHeartRate,
+                calories: todayCalories,
+                distance: todayDistance,
+                sleep: todaySleep
+            ),
+            workoutHistory: [],
+            nutritionHistory: [],
+            mentalHealthHistory: [],
+            healthGoals: HealthGoals(),
+            preferences: UserPreferences(),
+            notifications: NotificationSettings(),
             weeklySteps: weeklySteps,
             weeklyCalories: weeklyCalories,
             weeklyDistance: weeklyDistance,
@@ -824,6 +2640,580 @@ struct FamilyInvitationView: View {
     }
 }
 
+// MARK: - Challenges View
+struct ChallengesView: View {
+    @StateObject private var challengeManager = ChallengeManager.shared
+    @State private var showingCreateChallenge = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Active Challenges
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Active Challenges")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            Spacer()
+                            Button("Create New") {
+                                showingCreateChallenge = true
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                        }
+                        
+                        if challengeManager.activeChallenges.isEmpty {
+                            Text("No active challenges")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding()
+                        } else {
+                            ForEach(challengeManager.activeChallenges) { challenge in
+                                DetailedChallengeCard(challenge: challenge)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    // Completed Challenges
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Completed Challenges")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        if challengeManager.completedChallenges.isEmpty {
+                            Text("No completed challenges yet")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding()
+                        } else {
+                            ForEach(challengeManager.completedChallenges.prefix(3)) { challenge in
+                                CompletedChallengeCard(challenge: challenge)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+                .padding()
+            }
+            .navigationTitle("Family Challenges")
+            .sheet(isPresented: $showingCreateChallenge) {
+                CreateChallengeView()
+            }
+        }
+    }
+}
+
+struct DetailedChallengeCard: View {
+    let challenge: FamilyChallenge
+    @StateObject private var challengeManager = ChallengeManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(challenge.title)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    
+                    Text(challenge.description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("\(challenge.daysRemaining)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                    
+                    Text("days left")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Progress Bar
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Progress")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("\(Int(challenge.completionPercentage))%")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                }
+                
+                ProgressView(value: challenge.completionPercentage, total: 100)
+                    .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                    .frame(height: 8)
+            }
+            
+            // Participants
+            HStack {
+                Text("Participants: \(challenge.participants.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Reward: \(challenge.reward)")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .fontWeight(.medium)
+            }
+            
+            // Join Button
+            if !challenge.participants.contains("You") {
+                Button("Join Challenge") {
+                    challengeManager.joinChallenge(challenge.id, memberName: "You")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct CompletedChallengeCard: View {
+    let challenge: FamilyChallenge
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.title2)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(challenge.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Text("Completed \(challenge.endDate, style: .date)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Text("🏆")
+                .font(.title2)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+    }
+}
+
+struct CreateChallengeView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @StateObject private var challengeManager = ChallengeManager.shared
+    
+    @State private var title = ""
+    @State private var description = ""
+    @State private var selectedType = FamilyChallenge.ChallengeType.steps
+    @State private var duration = 7
+    @State private var target = 10000
+    @State private var reward = ""
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Challenge Details") {
+                    TextField("Title", text: $title)
+                    TextField("Description", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                
+                Section("Challenge Type") {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach(FamilyChallenge.ChallengeType.allCases, id: \.self) { type in
+                            Text(type.rawValue.capitalized).tag(type)
+                        }
+                    }
+                }
+                
+                Section("Duration & Target") {
+                    Stepper("Duration: \(duration) days", value: $duration, in: 1...30)
+                    Stepper("Target: \(target)", value: $target, in: 1...100000, step: 100)
+                }
+                
+                Section("Reward") {
+                    TextField("Reward (e.g., Family movie night)", text: $reward)
+                }
+            }
+            .navigationTitle("Create Challenge")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Create") {
+                        createChallenge()
+                    }
+                    .disabled(title.isEmpty || description.isEmpty || reward.isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func createChallenge() {
+        let newChallenge = FamilyChallenge(
+            title: title,
+            description: description,
+            type: selectedType,
+            duration: duration,
+            startDate: Date(),
+            endDate: Calendar.current.date(byAdding: .day, value: duration, to: Date()) ?? Date(),
+            target: target,
+            unit: selectedType.rawValue,
+            reward: reward,
+            isActive: true,
+            participants: [],
+            progress: [:],
+            leaderboard: []
+        )
+        
+        challengeManager.createChallenge(newChallenge)
+        presentationMode.wrappedValue.dismiss()
+    }
+}
+
+// MARK: - Analytics View
+struct AnalyticsView: View {
+    @StateObject private var analyticsManager = AnalyticsManager.shared
+    @StateObject private var familyManager = FamilyManager.shared
+    @State private var selectedPeriod = HealthAnalytics.AnalyticsPeriod.weekly
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Period Selector
+                    Picker("Period", selection: $selectedPeriod) {
+                        ForEach([HealthAnalytics.AnalyticsPeriod.daily, .weekly, .monthly, .yearly], id: \.self) { period in
+                            Text(period.rawValue.capitalized).tag(period)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding()
+                    
+                    // Health Insights
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Health Insights")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        if analyticsManager.currentInsights.isEmpty {
+                            Text("No insights available")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding()
+                        } else {
+                            ForEach(analyticsManager.currentInsights) { insight in
+                                DetailedInsightCard(insight: insight)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    // Health Recommendations
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Recommendations")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        if analyticsManager.currentRecommendations.isEmpty {
+                            Text("No recommendations available")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding()
+                        } else {
+                            ForEach(analyticsManager.currentRecommendations) { recommendation in
+                                RecommendationCard(recommendation: recommendation)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    // Family Analytics Summary
+                    FamilyAnalyticsSummary()
+                }
+                .padding()
+            }
+            .navigationTitle("Health Analytics")
+        }
+    }
+}
+
+struct DetailedInsightCard: View {
+    let insight: HealthInsight
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: insightIcon)
+                .foregroundColor(insightColor)
+                .font(.title2)
+                .frame(width: 32, height: 32)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(insight.title)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    
+                    Spacer()
+                    
+                    Text(insight.impact.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(impactColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+                
+                Text(insight.description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                if insight.actionable {
+                    Text("Actionable")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.2))
+                        .foregroundColor(.blue)
+                        .cornerRadius(6)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+    
+    private var insightIcon: String {
+        switch insight.type {
+        case .positive: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .improvement: return "arrow.up.circle.fill"
+        case .achievement: return "star.fill"
+        }
+    }
+    
+    private var insightColor: Color {
+        switch insight.type {
+        case .positive: return .green
+        case .warning: return .orange
+        case .improvement: return .blue
+        case .achievement: return .purple
+        }
+    }
+    
+    private var impactColor: Color {
+        switch insight.impact {
+        case .low: return .gray
+        case .medium: return .blue
+        case .high: return .orange
+        case .critical: return .red
+        }
+    }
+}
+
+struct RecommendationCard: View {
+    let recommendation: HealthRecommendation
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recommendation.title)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    
+                    Text(recommendation.description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Text(recommendation.priority.rawValue.capitalized)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(priorityColor)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
+            
+            Text("Estimated Impact: \(recommendation.estimatedImpact)")
+                .font(.caption)
+                .foregroundColor(.blue)
+                .fontWeight(.medium)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Action Steps:")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                ForEach(recommendation.actionSteps, id: \.self) { step in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("•")
+                            .foregroundColor(.blue)
+                        Text(step)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+    
+    private var priorityColor: Color {
+        switch recommendation.priority {
+        case .low: return .gray
+        case .medium: return .blue
+        case .high: return .orange
+        }
+    }
+}
+
+struct FamilyAnalyticsSummary: View {
+    @StateObject private var familyManager = FamilyManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Family Health Summary")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                SummaryMetricCard(
+                    title: "Average Health Score",
+                    value: "\(Int(familyAverageHealthScore))",
+                    unit: "/100",
+                    color: .green
+                )
+                
+                SummaryMetricCard(
+                    title: "Active Members",
+                    value: "\(activeMembersCount)",
+                    unit: "members",
+                    color: .blue
+                )
+                
+                SummaryMetricCard(
+                    title: "Total Steps Today",
+                    value: "\(totalFamilySteps)",
+                    unit: "steps",
+                    color: .orange
+                )
+                
+                SummaryMetricCard(
+                    title: "Goals Achieved",
+                    value: "\(goalsAchievedCount)",
+                    unit: "/\(totalGoalsCount)",
+                    color: .purple
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private var familyAverageHealthScore: Double {
+        let totalScore = familyManager.familyMembers.reduce(0) { $0 + $1.healthMetrics.overallHealthScore }
+        return familyManager.familyMembers.isEmpty ? 0 : Double(totalScore) / Double(familyManager.familyMembers.count)
+    }
+    
+    private var activeMembersCount: Int {
+        familyManager.familyMembers.filter { $0.isOnline }.count
+    }
+    
+    private var totalFamilySteps: Int {
+        familyManager.familyMembers.reduce(0) { $0 + $1.healthMetrics.steps }
+    }
+    
+    private var goalsAchievedCount: Int {
+        var total = 0
+        for member in familyManager.familyMembers {
+            let stepsGoal = member.healthMetrics.steps >= member.healthGoals.dailySteps ? 1 : 0
+            let caloriesGoal = member.healthMetrics.calories >= member.healthGoals.dailyCalories ? 1 : 0
+            let waterGoal = member.healthMetrics.waterIntake >= member.healthGoals.dailyWater ? 1 : 0
+            let sleepGoal = member.healthMetrics.sleep >= member.healthGoals.dailySleep ? 1 : 0
+            total += stepsGoal + caloriesGoal + waterGoal + sleepGoal
+        }
+        return total
+    }
+    
+    private var totalGoalsCount: Int {
+        familyManager.familyMembers.count * 4 // 4 goals per member
+    }
+}
+
+struct SummaryMetricCard: View {
+    let title: String
+    let value: String
+    let unit: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            HStack(alignment: .bottom, spacing: 4) {
+                Text(value)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                
+                Text(unit)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+    }
+}
+
 // MARK: - Main Content View
 struct ContentView: View {
     @StateObject private var familyManager = FamilyManager.shared
@@ -837,8 +3227,8 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Dashboard Tab
-            FamilyDashboardView(
+            // Enhanced Dashboard Tab
+            EnhancedHealthDashboard(
                 currentUser: Binding(
                     get: { familyManager.currentUser ?? FamilyMember.sampleCurrentUser },
                     set: { familyManager.currentUser = $0 }
@@ -868,6 +3258,20 @@ struct ContentView: View {
                 }
                 .tag(2)
             
+            // Challenges Tab
+            ChallengesView()
+                .tabItem {
+                    Label("Challenges", systemImage: "gamecontroller.fill")
+                }
+                .tag(3)
+            
+            // Analytics Tab
+            AnalyticsView()
+                .tabItem {
+                    Label("Analytics", systemImage: "chart.bar.fill")
+                }
+                .tag(4)
+            
             // Leaderboards Tab
             LeaderboardsView(
                 currentUser: Binding(
@@ -879,7 +3283,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Leaderboards", systemImage: "trophy.fill")
             }
-            .tag(3)
+                .tag(5)
             
             // Settings Tab
             SettingsView(
@@ -893,7 +3297,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Settings", systemImage: "gear")
             }
-            .tag(4)
+                .tag(6)
         }
         .accentColor(.blue)
         .onAppear {
@@ -1453,7 +3857,7 @@ struct FamilyOverviewSection: View {
                     )
                 }
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
+            VStack(spacing: 12) {
                 ForEach(familyMembers) { member in
                     FamilyMemberCard(member: member)
                 }
@@ -1477,21 +3881,24 @@ struct FamilyMemberCard: View {
         Button(action: {
             showDetail = true
         }) {
-            VStack(spacing: 12) {
-                HStack {
+            HStack(spacing: 16) {
+                // Avatar
                     Circle()
                         .fill(member.color)
-                        .frame(width: 40, height: 40)
+                    .frame(width: 50, height: 50)
                         .overlay(
                             Text(String(member.name.prefix(1)))
-                                .font(.title3)
+                            .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                         )
                     
+                // Member info and metrics
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(member.name)
-                            .font(.subheadline)
+                                .font(.headline)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
                         
@@ -1502,20 +3909,30 @@ struct FamilyMemberCard: View {
                     
                     Spacer()
                     
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(member.rank)
-                            .font(.title2)
+                        // Achievement badge
+                        HStack(spacing: 4) {
+                            Image(systemName: "medal.fill")
+                                .foregroundColor(.yellow)
+                                .font(.caption)
                         
                         Text(member.title)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.yellow.opacity(0.1))
+                        )
                     }
-                }
-                
-                HStack(spacing: 16) {
-                    VStack(spacing: 4) {
+                    
+                    // Health metrics in a compact row
+                    HStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 2) {
                         Text("\(member.todaySteps)")
-                            .font(.headline)
+                                .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.green)
                         
@@ -1524,9 +3941,9 @@ struct FamilyMemberCard: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                         Text("\(member.todayCalories)")
-                            .font(.headline)
+                                .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.orange)
                         
@@ -1535,9 +3952,9 @@ struct FamilyMemberCard: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                         Text(String(format: "%.1f", member.todayDistance))
-                            .font(.headline)
+                                .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.blue)
                         
@@ -1545,9 +3962,11 @@ struct FamilyMemberCard: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
+                        
+                        Spacer()
                 }
                 
-                // Online status
+                    // Status and streak
                 HStack {
                     Circle()
                         .fill(member.isOnline ? Color.green : Color.gray)
@@ -1562,6 +3981,7 @@ struct FamilyMemberCard: View {
                     Text("\(member.currentStreak) day streak")
                         .font(.caption2)
                         .foregroundColor(.orange)
+                    }
                 }
             }
             .padding(16)
@@ -1772,8 +4192,8 @@ struct FamilyMembersView: View {
                     // Family Stats Summary
                     FamilyStatsSummary(familyMembers: familyMembers)
                     
-                    // Family Members Grid
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
+                    // Family Members List
+                    VStack(spacing: 12) {
                         ForEach(familyMembers) { member in
                             EnhancedFamilyMemberCard(member: member)
                         }
@@ -1916,9 +4336,8 @@ struct EnhancedFamilyMemberCard: View {
         Button(action: {
             showDetail = true
         }) {
-            VStack(spacing: 16) {
-                // Header
-                HStack {
+            HStack(spacing: 16) {
+                // Avatar
                     Circle()
                         .fill(member.color)
                         .frame(width: 50, height: 50)
@@ -1929,6 +4348,9 @@ struct EnhancedFamilyMemberCard: View {
                                 .foregroundColor(.white)
                         )
                     
+                // Member info and metrics
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(member.name)
                             .font(.headline)
@@ -1942,53 +4364,65 @@ struct EnhancedFamilyMemberCard: View {
                     
                     Spacer()
                     
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(member.rank)
-                            .font(.title2)
+                        // Achievement badge
+                        HStack(spacing: 4) {
+                            Image(systemName: "medal.fill")
+                                .foregroundColor(.yellow)
+                                .font(.caption)
                         
                         Text(member.title)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.trailing)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.yellow.opacity(0.1))
+                        )
                     }
-                }
-                
-                // Quick Stats
+                    
+                    // Health metrics in a compact row
                 HStack(spacing: 20) {
-                    VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                         Text("\(member.todaySteps)")
-                            .font(.headline)
+                                .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.green)
+                            
                         Text("steps")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     
-                    VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                         Text("\(member.todayCalories)")
-                            .font(.headline)
+                                .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.orange)
+                            
                         Text("cal")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     
-                    VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                         Text(String(format: "%.1f", member.todayDistance))
-                            .font(.headline)
+                                .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.blue)
+                            
                         Text("km")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
+                        
+                        Spacer()
                 }
                 
-                // Status and Streak
+                    // Status and streak
                 HStack {
-                    HStack(spacing: 4) {
                         Circle()
                             .fill(member.isOnline ? Color.green : Color.gray)
                             .frame(width: 8, height: 8)
@@ -1996,7 +4430,6 @@ struct EnhancedFamilyMemberCard: View {
                         Text(member.isOnline ? "Online" : "Offline")
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                    }
                     
                     Spacer()
                     
@@ -2010,29 +4443,11 @@ struct EnhancedFamilyMemberCard: View {
                             .foregroundColor(.orange)
                     }
                 }
-                
-                // Badge Preview
-                if !member.badges.filter({ $0.isUnlocked }).isEmpty {
-                    HStack {
-                        Text("Badges:")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
-                        HStack(spacing: 4) {
-                            ForEach(member.badges.filter { $0.isUnlocked }.prefix(3)) { badge in
-                                Image(systemName: badge.icon)
-                                    .font(.caption2)
-                                    .foregroundColor(badge.color)
-                            }
-                        }
-                        
-                        Spacer()
-                    }
                 }
             }
-            .padding(20)
+            .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(Color(.systemGray6))
             )
         }
@@ -2205,11 +4620,16 @@ struct AddFamilyMemberView: View {
             appleID: appleID,
             color: selectedColor,
             isOnline: true,
-            todaySteps: 0,
-            todayHeartRate: 0,
-            todayCalories: 0,
-            todayDistance: 0.0,
-            todaySleep: 0.0,
+            isCurrentUser: false,
+            lastUpdated: Date(),
+            createdDate: Date(),
+            healthMetrics: HealthMetrics(),
+            workoutHistory: [],
+            nutritionHistory: [],
+            mentalHealthHistory: [],
+            healthGoals: HealthGoals(),
+            preferences: UserPreferences(),
+            notifications: NotificationSettings(),
             weeklySteps: 0,
             weeklyCalories: 0,
             weeklyDistance: 0.0,
@@ -2611,12 +5031,36 @@ struct FamilyMember: Identifiable, Codable {
     var lastUpdated: Date = Date()
     var createdDate: Date = Date()
     
-    // Today's data
-    var todaySteps: Int = 0
-    var todayHeartRate: Int = 0
-    var todayCalories: Int = 0
-    var todayDistance: Double = 0.0
-    var todaySleep: Double = 0.0 // Added for sleep
+    // Enhanced health data
+    var healthMetrics: HealthMetrics = HealthMetrics()
+    var workoutHistory: [WorkoutData] = []
+    var nutritionHistory: [NutritionData] = []
+    var mentalHealthHistory: [MentalHealthData] = []
+    var healthGoals: HealthGoals = HealthGoals()
+    var preferences: UserPreferences = UserPreferences()
+    var notifications: NotificationSettings = NotificationSettings()
+    
+    // Legacy properties for backward compatibility
+    var todaySteps: Int {
+        get { healthMetrics.steps }
+        set { healthMetrics.steps = newValue }
+    }
+    var todayHeartRate: Int {
+        get { healthMetrics.heartRate }
+        set { healthMetrics.heartRate = newValue }
+    }
+    var todayCalories: Int {
+        get { healthMetrics.calories }
+        set { healthMetrics.calories = newValue }
+    }
+    var todayDistance: Double {
+        get { healthMetrics.distance }
+        set { healthMetrics.distance = newValue }
+    }
+    var todaySleep: Double {
+        get { healthMetrics.sleep }
+        set { healthMetrics.sleep = newValue }
+    }
     
     // Weekly data
     var weeklySteps: Int = 0
@@ -2756,11 +5200,41 @@ struct FamilyMember: Identifiable, Codable {
         appleID: "john.doe@icloud.com",
         color: .blue,
         isOnline: true,
-        todaySteps: 8432,
-        todayHeartRate: 72,
-        todayCalories: 420,
-        todayDistance: 6.8,
-        todaySleep: 7.5,
+        isCurrentUser: true,
+        lastUpdated: Date(),
+        createdDate: Date(),
+        healthMetrics: HealthMetrics(
+            steps: 8432,
+            heartRate: 72,
+            calories: 420,
+            distance: 6.8,
+            sleep: 7.5,
+            bloodPressureSystolic: 120,
+            bloodPressureDiastolic: 80,
+            weight: 75.0,
+            bmi: 23.5,
+            bodyFatPercentage: 18.0,
+            vo2Max: 42.0,
+            workoutMinutes: 25,
+            activeCalories: 180,
+            exerciseMinutes: 20,
+            standHours: 9,
+            waterIntake: 2.2,
+            calorieIntake: 2200,
+            protein: 110.0,
+            carbs: 280.0,
+            fat: 85.0,
+            moodScore: 7,
+            stressLevel: 4,
+            meditationMinutes: 5,
+            mindfulnessScore: 6
+        ),
+        workoutHistory: [],
+        nutritionHistory: [],
+        mentalHealthHistory: [],
+        healthGoals: HealthGoals(),
+        preferences: UserPreferences(),
+        notifications: NotificationSettings(),
         weeklySteps: 45000,
         weeklyCalories: 2800,
         weeklyDistance: 35.2,
@@ -2770,7 +5244,18 @@ struct FamilyMember: Identifiable, Codable {
         monthlyDistance: 140.8,
         currentStreak: 5,
         longestStreak: 12,
-        badges: Badge.allBadges,
+        badges: [
+            Badge(name: "7-Day Streak", description: "7 consecutive active days", icon: "flame.fill", color: .orange, isUnlocked: true, unlockedDate: Date().addingTimeInterval(-86400)),
+            Badge(name: "10K Steps", description: "10,000+ steps in a day", icon: "figure.walk", color: .green, isUnlocked: false, unlockedDate: nil),
+            Badge(name: "Calorie Burner", description: "500+ calories burned", icon: "flame", color: .orange, isUnlocked: false, unlockedDate: nil),
+            Badge(name: "Distance Master", description: "10+ km in a day", icon: "location.fill", color: .blue, isUnlocked: false, unlockedDate: nil),
+            Badge(name: "Sleep Champion", description: "8+ hours of sleep", icon: "bed.double.fill", color: .purple, isUnlocked: true, unlockedDate: Date().addingTimeInterval(-172800)),
+            Badge(name: "Early Bird", description: "Active before 7 AM", icon: "sunrise.fill", color: .yellow, isUnlocked: true, unlockedDate: Date().addingTimeInterval(-259200)),
+            Badge(name: "Night Owl", description: "Active after 10 PM", icon: "moon.fill", color: .indigo, isUnlocked: false, unlockedDate: nil),
+            Badge(name: "Weekend Warrior", description: "Active on weekends", icon: "calendar", color: .pink, isUnlocked: true, unlockedDate: Date().addingTimeInterval(-345600)),
+            Badge(name: "Marathon Walker", description: "20,000+ steps in a day", icon: "figure.walk.circle.fill", color: .red, isUnlocked: false, unlockedDate: nil),
+            Badge(name: "Consistency King", description: "30 days of activity", icon: "crown.fill", color: .yellow, isUnlocked: false, unlockedDate: nil)
+        ],
         achievements: [],
         weeklyTrends: []
     )
@@ -2782,11 +5267,41 @@ struct FamilyMember: Identifiable, Codable {
             appleID: "sarah.doe@icloud.com",
             color: .green,
             isOnline: true,
-            todaySteps: 9200,
-            todayHeartRate: 68,
-            todayCalories: 480,
-            todayDistance: 7.2,
-            todaySleep: 8.0,
+            isCurrentUser: false,
+            lastUpdated: Date(),
+            createdDate: Date(),
+            healthMetrics: HealthMetrics(
+                steps: 9200,
+                heartRate: 68,
+                calories: 480,
+                distance: 7.2,
+                sleep: 8.0,
+                bloodPressureSystolic: 115,
+                bloodPressureDiastolic: 75,
+                weight: 65.0,
+                bmi: 22.0,
+                bodyFatPercentage: 20.0,
+                vo2Max: 48.0,
+                workoutMinutes: 35,
+                activeCalories: 220,
+                exerciseMinutes: 30,
+                standHours: 11,
+                waterIntake: 2.8,
+                calorieIntake: 1900,
+                protein: 95.0,
+                carbs: 220.0,
+                fat: 70.0,
+                moodScore: 8,
+                stressLevel: 2,
+                meditationMinutes: 15,
+                mindfulnessScore: 8
+            ),
+            workoutHistory: [],
+            nutritionHistory: [],
+            mentalHealthHistory: [],
+            healthGoals: HealthGoals(),
+            preferences: UserPreferences(),
+            notifications: NotificationSettings(),
             weeklySteps: 52000,
             weeklyCalories: 3100,
             weeklyDistance: 40.1,
@@ -2806,11 +5321,41 @@ struct FamilyMember: Identifiable, Codable {
             appleID: "emma.doe@icloud.com",
             color: .orange,
             isOnline: false,
-            todaySteps: 6500,
-            todayHeartRate: 75,
-            todayCalories: 320,
-            todayDistance: 4.8,
-            todaySleep: 9.0,
+            isCurrentUser: false,
+            lastUpdated: Date(),
+            createdDate: Date(),
+            healthMetrics: HealthMetrics(
+                steps: 6500,
+                heartRate: 75,
+                calories: 320,
+                distance: 4.8,
+                sleep: 9.0,
+                bloodPressureSystolic: 110,
+                bloodPressureDiastolic: 70,
+                weight: 45.0,
+                bmi: 18.5,
+                bodyFatPercentage: 22.0,
+                vo2Max: 35.0,
+                workoutMinutes: 20,
+                activeCalories: 150,
+                exerciseMinutes: 15,
+                standHours: 8,
+                waterIntake: 1.8,
+                calorieIntake: 1800,
+                protein: 70.0,
+                carbs: 200.0,
+                fat: 60.0,
+                moodScore: 9,
+                stressLevel: 1,
+                meditationMinutes: 5,
+                mindfulnessScore: 7
+            ),
+            workoutHistory: [],
+            nutritionHistory: [],
+            mentalHealthHistory: [],
+            healthGoals: HealthGoals(),
+            preferences: UserPreferences(),
+            notifications: NotificationSettings(),
             weeklySteps: 38000,
             weeklyCalories: 2100,
             weeklyDistance: 28.5,
@@ -2830,11 +5375,41 @@ struct FamilyMember: Identifiable, Codable {
             appleID: "mike.doe@icloud.com",
             color: .purple,
             isOnline: true,
-            todaySteps: 7800,
-            todayHeartRate: 70,
-            todayCalories: 380,
-            todayDistance: 5.9,
-            todaySleep: 7.0,
+            isCurrentUser: false,
+            lastUpdated: Date(),
+            createdDate: Date(),
+            healthMetrics: HealthMetrics(
+                steps: 7800,
+                heartRate: 70,
+                calories: 380,
+                distance: 5.9,
+                sleep: 7.0,
+                bloodPressureSystolic: 105,
+                bloodPressureDiastolic: 65,
+                weight: 50.0,
+                bmi: 19.0,
+                bodyFatPercentage: 18.0,
+                vo2Max: 38.0,
+                workoutMinutes: 25,
+                activeCalories: 170,
+                exerciseMinutes: 20,
+                standHours: 9,
+                waterIntake: 2.0,
+                calorieIntake: 2000,
+                protein: 80.0,
+                carbs: 240.0,
+                fat: 65.0,
+                moodScore: 7,
+                stressLevel: 3,
+                meditationMinutes: 8,
+                mindfulnessScore: 6
+            ),
+            workoutHistory: [],
+            nutritionHistory: [],
+            mentalHealthHistory: [],
+            healthGoals: HealthGoals(),
+            preferences: UserPreferences(),
+            notifications: NotificationSettings(),
             weeklySteps: 42000,
             weeklyCalories: 2400,
             weeklyDistance: 32.8,
