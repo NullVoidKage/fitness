@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A1234567890123456789014D"
-               BuildableName = "RecipeApp.app"
-               BlueprintName = "RecipeApp"
-               ReferencedContainer = "container:RecipeApp.xcodeproj">
+               BuildableName = "FamilyHealth.app"
+               BlueprintName = "FamilyHealth"
+               ReferencedContainer = "container:FamilyHealth.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -44,8 +44,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A1234567890123456789014D"
-            BuildableName = "RecipeApp.app"
-            BlueprintName = "RecipeApp"
+            BuildableName = "FamilyHealth.app"
+            BlueprintName = "FamilyHealth"
             ReferencedContainer = "container:RecipeApp.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -61,11 +61,20 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A1234567890123456789014D"
-            BuildableName = "RecipeApp.app"
-            BlueprintName = "RecipeApp"
+            BuildableName = "FamilyHealth.app"
+            BlueprintName = "FamilyHealth"
             ReferencedContainer = "container:RecipeApp.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "A1234567890123456789014D"
+            BuildableName = "FamilyHealth.app"
+            BlueprintName = "FamilyHealth"
+            ReferencedContainer = "container:RecipeApp.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

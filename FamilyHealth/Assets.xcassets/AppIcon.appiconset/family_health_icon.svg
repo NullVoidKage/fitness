@@ -1,0 +1,45 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E74C3C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="512" fill="url(#bgGradient)"/>
+  
+  <!-- Family silhouettes -->
+  <!-- Parent 1 (left) -->
+  <circle cx="300" cy="400" r="60" fill="white" opacity="0.9"/>
+  <rect x="270" y="460" width="60" height="120" rx="30" fill="white" opacity="0.9"/>
+  
+  <!-- Parent 2 (right) -->
+  <circle cx="724" cy="400" r="60" fill="white" opacity="0.9"/>
+  <rect x="694" y="460" width="60" height="120" rx="30" fill="white" opacity="0.9"/>
+  
+  <!-- Child 1 (center-left) -->
+  <circle cx="400" cy="500" r="40" fill="white" opacity="0.9"/>
+  <rect x="380" y="540" width="40" height="80" rx="20" fill="white" opacity="0.9"/>
+  
+  <!-- Child 2 (center-right) -->
+  <circle cx="624" cy="500" r="40" fill="white" opacity="0.9"/>
+  <rect x="604" y="540" width="40" height="80" rx="20" fill="white" opacity="0.9"/>
+  
+  <!-- Heart symbol in center -->
+  <path d="M512 650 C512 650, 450 590, 450 530 C450 480, 480 450, 512 480 C544 450, 574 480, 574 530 C574 590, 512 650, 512 650 Z" fill="url(#heartGradient)"/>
+  
+  <!-- Health cross in heart -->
+  <rect x="500" y="520" width="24" height="80" fill="white" opacity="0.9"/>
+  <rect x="480" y="540" width="64" height="24" fill="white" opacity="0.9"/>
+  
+  <!-- Connecting lines between family members -->
+  <line x1="360" y1="460" x2="440" y2="540" stroke="white" stroke-width="8" opacity="0.6"/>
+  <line x1="664" y1="460" x2="584" y2="540" stroke="white" stroke-width="8" opacity="0.6"/>
+  <line x1="440" y1="540" x2="584" y2="540" stroke="white" stroke-width="6" opacity="0.6"/>
+</svg>
